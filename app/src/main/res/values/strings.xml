@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">ITISMOB-MCO</string>
+
+    // login_activity
+    <string name="onboarding_header">Your gateway to countless stories.</string>
+    <string name="onboarding_body">Track the books you love, rate and review every
+        page-turner, and build your virtual bookshelf for the world to see. </string>
+    <string name="login_button">Continue with Google</string>
 </resources>
