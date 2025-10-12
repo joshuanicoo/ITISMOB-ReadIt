@@ -1,5 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-
-    <style name="Theme.ITISMOBMCO" parent="android:Theme.Material.Light.NoActionBar" />
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Base.Theme.ITISMob_MCO" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/main_green</item>
+        <item name="colorSecondary">@color/white</item>
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
+    </style>
+    <style name="Theme.ITISMob_MCO" parent="Base.Theme.ITISMob_MCO" />
 </resources>

@@ -4,15 +4,15 @@
     <item>
         <shape android:shape="oval">
             <solid android:color="@color/white" />
-            <size android:width="40dp" android:height="40dp" />
+            <size android:width="30dp" android:height="30dp" />
         </shape>
     </item>
 
     <item
         android:id="@+id/ic_google_scale"
         android:drawable="@drawable/ic_google"
-        android:width="30dp"
-        android:height="30dp"
+        android:width="25dp"
+        android:height="25dp"
         android:gravity="center" />
 
 </layer-list>
