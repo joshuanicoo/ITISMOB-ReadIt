@@ -3,11 +3,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:layout_gravity="center_horizontal"
+    android:foregroundGravity="center_horizontal">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:foregroundGravity="center_horizontal"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -15,22 +19,20 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <SearchView
+            android:id="@+id/bookSv"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="12dp"
-            android:id="@+id/bookSv"
+            android:background="@drawable/search_bkg"
+            android:focusable="false"
+            app:closeIcon="@drawable/baseline_clear_24"
+            app:iconifiedByDefault="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:iconifiedByDefault="false"
-            app:searchHintIcon="@null"
             app:queryHint="Title, Author, or ISBN"
-            android:focusable="false"
-            app:closeIcon="@drawable/baseline_clear_24"
-            app:searchIcon="@drawable/baseline_search_24"
-            android:background="@drawable/search_bkg"
-            >
-
+            app:searchHintIcon="@null"
+            app:searchIcon="@drawable/baseline_search_24">
 
 
         </SearchView>
@@ -38,7 +40,13 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/bookListRv"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:foregroundGravity="center_horizontal"
+            android:paddingStart="40dp"
+            android:paddingEnd="20dp"
+            app:spanCount="2" />
 
     </LinearLayout>
 

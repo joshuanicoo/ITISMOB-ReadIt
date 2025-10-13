@@ -7,6 +7,8 @@ class LoginViewHolder(private val viewBinding: LoginItemLayoutBinding): Recycler
 
     fun bindData(data: LoginOnboardingModel) {
         this.viewBinding.loginImageIv.setImageResource(data.imageId)
+
+
         this.viewBinding.loginHeaderTv.text = data.header
         this.viewBinding.loginBodyTv.text = data.body
     }

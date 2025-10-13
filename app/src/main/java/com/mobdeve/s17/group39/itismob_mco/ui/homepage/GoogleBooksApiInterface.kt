@@ -5,6 +5,6 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 
 interface GoogleBooksApiInterface {
-    @GET("volumes?q=machine+learning&maxResults=5&printType=books")
+    @GET("volumes?q=there's+no+freaking+way&maxResults=10&printType=books")
     fun getBooks(): Call<GoogleBooksResponse>
 }

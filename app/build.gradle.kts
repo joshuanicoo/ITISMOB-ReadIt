@@ -46,6 +46,7 @@ dependencies {
 // gson converter
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.google.android.material:material:1.13.0")
+    implementation("com.github.bumptech.glide:glide:5.0.5")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

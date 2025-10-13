@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ITISMob_MCO">
         <activity
-            android:name=".LoginActivity"
+            android:name=".ui.homepage.HomeActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.ITISMob_MCO">
