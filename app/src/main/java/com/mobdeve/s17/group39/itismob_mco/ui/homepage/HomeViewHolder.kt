@@ -25,7 +25,7 @@ class HomeViewHolder(private val viewBinding: BooksCardLayoutBinding): RecyclerV
         this.viewBinding.bookTitleTv.text = data.volumeInfo.title
     }
 
-    private fun getEnhancedImageUrl(data: Volume): String? {
+    public fun getEnhancedImageUrl(data: Volume): String? {
         val baseUrl = data.volumeInfo?.imageLinks?.thumbnail
             ?: data.volumeInfo?.imageLinks?.smallThumbnail
             ?: ""

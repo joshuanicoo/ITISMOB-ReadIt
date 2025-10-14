@@ -5,5 +5,26 @@
     <string name="onboarding_header">Your gateway to countless stories.</string>
     <string name="onboarding_body">Track the books you love, rate and review every
         page-turner, and build your virtual bookshelf for the world to see. </string>
-    <string name="login_button">Continue with Google</string>
+    <string name="login_btn">Continue with Google</string>
+
+    // view_book_activity
+    <string name="title_holder">An Introduction to Machine Learning</string>
+    <string name="author_holder">by Chat G. Petee</string>
+    <string name="ratings_holder">67, 690</string>
+    <string name="like_btn">Like</string>
+    <string name="add_to_list_btn">Add</string>
+    <string name="review_btn">Review"</string>
+    <string name="rate_header">Rate this book:</string>
+    <string name="desc_header">Book Description</string>
+    <string name="desc_holder">Introduction to Machine Learning offers a thorough and accessible entry point into one of the most transformative technologies of our time."</string>
+    <string name="reviews_header">Community Reviews</string>
+
+    // view_book_item
+    <string name="genre_holder">Fantasy</string>
+
+    // review_item
+    <string name="username_holder">Kasani Tito</string>
+    <string name="review_holder">We\'re sooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo back</string>
+    <string name="likes_holder">67</string>
+
 </resources>

@@ -11,4 +11,5 @@
     // Mainly used colors
     <color name="main_green">#59ac77</color>
     <color name="main_orange">#F4991A</color>
+    <color name="light_grey">#E0E0E0</color>
 </resources>

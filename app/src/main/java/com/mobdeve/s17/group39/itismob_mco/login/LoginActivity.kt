@@ -46,6 +46,25 @@ class LoginActivity : AppCompatActivity() {
                 R.drawable.reading_goose_1
             )
         )
+        tempData.add(
+            LoginOnboardingModel(
+                "Your Book Club, Without the Schedule.",
+                "Share your literary journey with friends. Form clubs, spark discussions " +
+                        "on your favorite passages, and see what your network is devouring next. " +
+                        "Reading is better together.",
+                R.drawable.reading_goose_2
+            )
+        )
+
+        tempData.add(
+            LoginOnboardingModel(
+                "Your Next Favorite Book is Waiting.",
+                "Unleash the power of the world's most passionate reading community. " +
+                        "With millions of titles and countless user-generated reviews and shelves, " +
+                        "your next five-star read is just a search away.",
+                R.drawable.reading_goose_3
+            )
+        )
         return tempData
     }
 }

@@ -1,209 +1,287 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:fillViewport="true">
 
-    <FrameLayout
-        android:id="@+id/frameLayout"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:background="@color/black"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:layout_height="wrap_content">
 
-    </FrameLayout>
+        <FrameLayout
+            android:id="@+id/frameLayout"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:background="@color/black"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-    <TextView
-        android:id="@+id/titleTv"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="30dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginRight="30dp"
-        android:text="An Introduction to Machine Learning"
-        android:textAlignment="viewStart"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/coverIv"
-        app:layout_constraintTop_toBottomOf="@+id/frameLayout" />
+        </FrameLayout>
 
-    <TextView
-        android:id="@+id/authorTv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="30dp"
-        android:layout_marginTop="10dp"
-        android:text="by Chat GPT"
-        android:textAlignment="viewStart"
-        android:textColor="@color/black"
-        android:textSize="12sp"
-        app:layout_constraintStart_toEndOf="@id/coverIv"
-        app:layout_constraintTop_toBottomOf="@+id/titleTv" />
+        <TextView
+            android:id="@+id/titleTv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="30dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="30dp"
+            android:text="@string/title_holder"
+            android:textAlignment="viewStart"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/coverIv"
+            app:layout_constraintTop_toBottomOf="@id/frameLayout" />
 
-    <ImageView
-        android:id="@+id/coverIv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="30dp"
-        app:layout_constraintBottom_toBottomOf="@+id/frameLayout"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/frameLayout"
-        app:layout_constraintVertical_bias="0"
-        app:srcCompat="@drawable/content" />
+        <TextView
+            android:id="@+id/authorTv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="30dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/author_holder"
+            android:textAlignment="viewStart"
+            android:textColor="@color/black"
+            android:textSize="12sp"
+            app:layout_constraintStart_toEndOf="@id/coverIv"
+            app:layout_constraintTop_toBottomOf="@id/titleTv" />
 
-    <RatingBar
-        android:id="@+id/avgRatingRb"
-        style="?android:attr/ratingBarStyleSmall"
-        android:isIndicator="true"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="30dp"
-        android:layout_marginTop="10dp"
-        android:numStars="5"
-        app:layout_constraintStart_toEndOf="@+id/coverIv"
-        app:layout_constraintTop_toBottomOf="@+id/authorTv" />
+        <ImageView
+            android:id="@+id/coverIv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="30dp"
+            app:layout_constraintBottom_toBottomOf="@id/frameLayout"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/frameLayout"
+            app:layout_constraintVertical_bias="0"
+            app:srcCompat="@drawable/content" />
 
-    <TextView
-        android:id="@+id/numberOfRatingsTv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:text="67,690"
-        android:textSize="12sp"
-        app:layout_constraintStart_toEndOf="@+id/avgRatingRb"
-        app:layout_constraintTop_toBottomOf="@+id/authorTv" />
+        <RatingBar
+            android:id="@+id/avgRatingRb"
+            style="?android:attr/ratingBarStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="30dp"
+            android:layout_marginTop="10dp"
+            android:isIndicator="true"
+            android:max="5"
+            android:progressTint="@color/main_orange"
+            android:rating="0"
+            app:layout_constraintStart_toEndOf="@id/coverIv"
+            app:layout_constraintTop_toBottomOf="@id/authorTv" />
 
-    <View
-        android:id="@+id/line1"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="10dp"
-        android:background="@color/black"
-        app:layout_constraintBottom_toTopOf="@+id/addToListBtn"
-        app:layout_constraintTop_toBottomOf="@+id/avgRatingRb" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/likeBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="20dp"
-        android:text="Like"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        app:backgroundTint="@color/main_green"
-        app:cornerRadius="30dp"
-        app:icon="@drawable/ic_heart_off"
-        app:iconGravity="top"
-        app:iconPadding="0dp"
-        app:iconSize="20dp"
-        app:iconTint="@null"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.1"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/line1"
-        app:strokeColor="@color/black"
-        app:strokeWidth="1dp" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/addToListBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="20dp"
-        android:text="Add"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        app:backgroundTint="@color/main_green"
-        app:cornerRadius="30dp"
-        app:icon="@drawable/ic_add_off"
-        app:iconGravity="top"
-        app:iconPadding="0dp"
-        app:iconSize="20dp"
-        app:iconTint="@null"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/line1"
-        app:strokeColor="@color/black"
-        app:strokeWidth="1dp" />
+        <TextView
+            android:id="@+id/numberOfRatingsTv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="@string/ratings_holder"
+            android:textSize="12sp"
+            app:layout_constraintStart_toEndOf="@id/avgRatingRb"
+            app:layout_constraintTop_toBottomOf="@id/authorTv" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/reviewBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="20dp"
-        android:text="Review"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        app:backgroundTint="@color/main_green"
-        app:cornerRadius="30dp"
-        app:icon="@drawable/ic_review"
-        app:iconGravity="top"
-        app:iconPadding="0dp"
-        app:iconSize="20dp"
-        app:iconTint="@null"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.9"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/line1"
-        app:strokeColor="@color/black"
-        app:strokeWidth="1dp" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/genreRv"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="20dp"
+            android:nestedScrollingEnabled="false"
+            app:layout_constraintBottom_toTopOf="@id/line1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/coverIv" />
 
-    <TextView
-        android:id="@+id/staticRateHeaderTv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="20dp"
-        android:text="Rate this book:"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/addToListBtn" />
+        <View
+            android:id="@+id/line1"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="20dp"
+            android:background="@color/black"
+            app:layout_constraintBottom_toTopOf="@id/addToListBtn"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/genreRv" />
 
-    <RatingBar
-        android:id="@+id/rateRb"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:scaleX=".7"
-        android:scaleY=".7"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/staticRateHeaderTv" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/likeBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/like_btn"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/main_green"
+            app:cornerRadius="30dp"
+            app:icon="@drawable/ic_heart_off"
+            app:iconGravity="top"
+            app:iconPadding="0dp"
+            app:iconSize="20dp"
+            app:iconTint="@null"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/line1"
+            app:strokeColor="@color/black"
+            app:strokeWidth="1dp" />
 
-    <View
-        android:id="@+id/line2"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/black"
-        app:layout_constraintBottom_toTopOf="@+id/descriptionTv"
-        app:layout_constraintTop_toBottomOf="@+id/rateRb" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addToListBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/add_to_list_btn"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/main_green"
+            app:cornerRadius="30dp"
+            app:icon="@drawable/ic_add_off"
+            app:iconGravity="top"
+            app:iconPadding="0dp"
+            app:iconSize="20dp"
+            app:iconTint="@null"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/line1"
+            app:strokeColor="@color/black"
+            app:strokeWidth="1dp" />
 
-    <TextView
-        android:id="@+id/descriptionTv"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_margin="30dp"
-        android:lineSpacingExtra="3sp"
-        android:text="Introduction to Machine Learning offers a thorough and accessible entry point into one of the most transformative technologies of our time. This comprehensive guide takes readers on an educational journey through the core concepts, algorithms, and applications that define the field of machine learning."
-        android:textAlignment="center"
-        android:textColor="@color/black"
-        android:textSize="12sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/line2" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/reviewBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/review_btn"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/main_green"
+            app:cornerRadius="30dp"
+            app:icon="@drawable/ic_review"
+            app:iconGravity="top"
+            app:iconPadding="0dp"
+            app:iconSize="20dp"
+            app:iconTint="@null"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.9"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/line1"
+            app:strokeColor="@color/black"
+            app:strokeWidth="1dp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <TextView
+            android:id="@+id/staticRateHeaderTv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/rate_header"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/likeBtn" />
+
+        <RatingBar
+            android:id="@+id/rateRb"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:progressTint="@color/main_orange"
+            android:scaleX=".7"
+            android:scaleY=".7"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/staticRateHeaderTv" />
+
+        <View
+            android:id="@+id/line2"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="20dp"
+            android:background="@color/black"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/rateRb" />
+
+        <TextView
+            android:id="@+id/staticDescriptionHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/desc_header"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/line2" />
+
+        <TextView
+            android:id="@+id/descriptionTv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="30dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="30dp"
+            android:lineSpacingExtra="3sp"
+            android:text="@string/desc_holder"
+            android:textAlignment="center"
+            android:textColor="@color/black"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/staticDescriptionHeader" />
+
+        <View
+            android:id="@+id/line3"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_margin="20dp"
+            android:background="@color/black"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/descriptionTv" />
+
+        <TextView
+            android:id="@+id/staticReviewsHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/reviews_header"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/line3" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/reviewRv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/staticReviewsHeader" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>

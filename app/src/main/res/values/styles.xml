@@ -4,6 +4,4 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">5dp</item> <!-- Adjust as needed -->
     </style>
-
-
 </resources>

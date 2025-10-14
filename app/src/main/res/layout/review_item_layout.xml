@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white">
+
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/userPfpHolderCv"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_margin="20dp"
+        app:cardCornerRadius="100dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/userPfpIv"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            app:srcCompat="@drawable/kasane_teto_pfp" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/usernameTv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:text="@string/username_holder"
+        android:textColor="@color/black"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@+id/userPfpHolderCv"
+        app:layout_constraintStart_toEndOf="@+id/userPfpHolderCv"
+        app:layout_constraintTop_toTopOf="@+id/userPfpHolderCv" />
+
+    <ImageView
+        android:id="@+id/isLikedIv"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_margin="3dp"
+        android:backgroundTint="@color/white"
+        android:contentDescription="Like button"
+        android:padding="1dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_heart_on"
+        app:layout_constraintBottom_toBottomOf="@+id/userRatingRb"
+        app:layout_constraintEnd_toStartOf="@+id/userRatingRb"
+        app:layout_constraintTop_toTopOf="@+id/userRatingRb" />
+
+    <RatingBar
+        android:id="@+id/userRatingRb"
+        style="?android:attr/ratingBarStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:isIndicator="true"
+        android:numStars="5"
+        android:progressTint="@color/main_orange"
+        app:layout_constraintBottom_toBottomOf="@+id/userPfpHolderCv"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/userPfpHolderCv" />
+
+    <TextView
+        android:id="@+id/reviewBodyTv"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:text="@string/review_holder"
+        android:textColor="@color/black"
+        app:layout_constraintStart_toEndOf="@+id/userPfpHolderCv"
+        app:layout_constraintTop_toBottomOf="@+id/userPfpHolderCv" />
+
+    <ImageButton
+        android:id="@+id/likeReviewBtn"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_margin="10dp"
+        android:layout_marginBottom="20dp"
+        android:backgroundTint="@color/white"
+        android:contentDescription="Like button"
+        android:padding="1dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_heart_off"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/userPfpHolderCv"
+        app:layout_constraintTop_toBottomOf="@+id/reviewBodyTv" />
+
+    <TextView
+        android:id="@+id/likesTv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:layout_marginBottom="20dp"
+        android:text="@string/likes_holder"
+        android:textSize="10sp"
+        app:layout_constraintBottom_toBottomOf="@+id/likeReviewBtn"
+        app:layout_constraintStart_toEndOf="@+id/likeReviewBtn"
+        app:layout_constraintTop_toTopOf="@+id/likeReviewBtn" />
+
+    <View
+        android:id="@+id/reviewBorderBottom"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:background="@color/black"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

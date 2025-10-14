@@ -28,18 +28,22 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
     override fun onBindViewHolder(holder: HomeViewHolder, position: Int) {
         holder.bindData(data[position])
 
-
         holder.itemView.setOnClickListener {
             val nextIntent = Intent(holder.itemView.context,
                 ViewBookActivity::class.java)
             val position = holder.adapterPosition
             val authorsString = data.get(position).volumeInfo.authors?.joinToString(", ")
+            val genreString = data.get(position).volumeInfo.categories?.joinToString(", ")
+            val imageUrl = holder.getEnhancedImageUrl(data.get(position))
+
             nextIntent.putExtra(ViewBookActivity.Companion.TITLE_KEY, data.get(position).volumeInfo.title)
             nextIntent.putExtra(ViewBookActivity.Companion.AUTHOR_KEY, authorsString)
             nextIntent.putExtra(ViewBookActivity.Companion.DESCRIPTION_KEY, data.get(position).volumeInfo.description)
-            nextIntent.putExtra(ViewBookActivity.Companion.AVG_RATING_COUNT_KEY, data.get(position).volumeInfo.averageRating)
+            nextIntent.putExtra(ViewBookActivity.Companion.AVG_RATING_KEY, data.get(position).volumeInfo.averageRating)
             nextIntent.putExtra(ViewBookActivity.Companion.RATING_COUNT_KEY, data.get(position).volumeInfo.ratingsCount)
+            nextIntent.putExtra(ViewBookActivity.Companion.GENRE_KEY, genreString)
             nextIntent.putExtra(ViewBookActivity.Companion.POSITION_KEY, position)
+            nextIntent.putExtra(ViewBookActivity.Companion.IMAGE_URL, imageUrl)
 
             holder.itemView.context.startActivity(nextIntent)
         }
