@@ -1,4 +1,4 @@
-package com.mobdeve.s17.group39.itismob_mco
+package com.mobdeve.s17.group39.itismob_mco.login
 
 import androidx.recyclerview.widget.RecyclerView
 import com.mobdeve.s17.group39.itismob_mco.databinding.LoginItemLayoutBinding

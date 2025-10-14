@@ -66,4 +66,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.google.android.material)
+    implementation("at.blogc:expandabletextview:1.0.5")
 }
