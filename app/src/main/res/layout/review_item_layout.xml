@@ -6,12 +6,13 @@
     android:background="@color/white">
 
 
+
     <androidx.cardview.widget.CardView
         android:id="@+id/userPfpHolderCv"
         android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_margin="20dp"
-        app:cardCornerRadius="100dp"
+        app:cardCornerRadius="15dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -20,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            app:srcCompat="@drawable/kasane_teto_pfp" />
+            android:src="@drawable/user_pfp_1"/>
     </androidx.cardview.widget.CardView>
 
     <TextView
@@ -69,6 +70,7 @@
         android:layout_margin="10dp"
         android:text="@string/review_holder"
         android:textColor="@color/black"
+        android:textSize="12sp"
         app:layout_constraintStart_toEndOf="@+id/userPfpHolderCv"
         app:layout_constraintTop_toBottomOf="@+id/userPfpHolderCv" />
 

@@ -88,13 +88,15 @@ class ViewBookActivity : AppCompatActivity() {
             }
         }
 
+
+
     }
 
     private fun generateReviews(): ArrayList<ReviewModel> {
         val tempData = ArrayList<ReviewModel>()
 
         tempData.add(ReviewModel(
-            userPfpResId = R.drawable.kasane_teto_pfp,
+            userPfpResId = R.drawable.user_pfp_1,
             username = "Kasane Teto",
             userRating = 4.5f,
             reviewBody = "Absolutely loved this book! Couldn't put it down.",
@@ -103,7 +105,7 @@ class ViewBookActivity : AppCompatActivity() {
         ))
 
         tempData.add(ReviewModel(
-            userPfpResId = R.drawable.kasane_teto_pfp,
+            userPfpResId = R.drawable.user_pfp_2,
             username = "BookWorm42",
             userRating = 3.0f,
             reviewBody = "Good premise but slow pacing in the middle chapters.",
@@ -112,7 +114,7 @@ class ViewBookActivity : AppCompatActivity() {
         ))
 
         tempData.add(ReviewModel(
-            userPfpResId = R.drawable.kasane_teto_pfp,
+            userPfpResId = R.drawable.user_pfp_3,
             username = "LiteraryExplorer",
             userRating = 5.0f,
             reviewBody = "Masterpiece! The character development was incredible.",
@@ -121,7 +123,7 @@ class ViewBookActivity : AppCompatActivity() {
         ))
 
         tempData.add(ReviewModel(
-            userPfpResId = R.drawable.kasane_teto_pfp,
+            userPfpResId = R.drawable.user_pfp_4,
             username = "CriticalReader",
             userRating = 2.5f,
             reviewBody = "Interesting concept but poor execution.",
@@ -130,7 +132,7 @@ class ViewBookActivity : AppCompatActivity() {
         ))
 
         tempData.add(ReviewModel(
-            userPfpResId = R.drawable.kasane_teto_pfp,
+            userPfpResId = R.drawable.user_pfp_5,
             username = "PageTurner",
             userRating = 4.0f,
             reviewBody = "Great weekend read, highly recommend!",
