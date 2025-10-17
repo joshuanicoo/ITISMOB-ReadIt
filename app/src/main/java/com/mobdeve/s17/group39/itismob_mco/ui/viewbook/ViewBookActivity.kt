@@ -6,9 +6,12 @@ import android.view.ViewGroup
 import android.view.Window
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import android.graphics.Color
 
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.request.RequestOptions
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
@@ -16,6 +19,8 @@ import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.genre.GenreAdapter
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review.ReviewModel
+import jp.wasabeef.glide.transformations.BlurTransformation
+import jp.wasabeef.glide.transformations.ColorFilterTransformation
 
 class ViewBookActivity : AppCompatActivity() {
     companion object {
@@ -54,12 +59,28 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.avgRatingRb.rating = avgRatingDouble.toFloat()
         viewBookVB.numberOfRatingsTv.text = ratingCountInt.toString()
 
+        // For fetching book cover
         Glide.with(this.applicationContext)
             .load(imageUrl)
             .placeholder(R.drawable.content)
             .error(R.drawable.content)
             .centerCrop()
             .into(this.viewBookVB.coverIv)
+
+        // Making a book banner using the cover
+        Glide.with(this.applicationContext)
+            .load(imageUrl)
+            .apply(
+                RequestOptions()
+                    .transform(
+                        CenterCrop(),
+                        BlurTransformation(25, 3),
+                        ColorFilterTransformation(Color.parseColor("#66000000"))
+                    )
+                    .placeholder(R.drawable.content)
+                    .error(R.drawable.content)
+            )
+            .into(this.viewBookVB.bannerIv)
 
         val dataGenre = ArrayList<String>()
         if (!genreString.isNullOrEmpty()) {

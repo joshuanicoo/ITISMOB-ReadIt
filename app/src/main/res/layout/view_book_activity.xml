@@ -11,16 +11,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <FrameLayout
-            android:id="@+id/frameLayout"
+        <ImageView
+            android:id="@+id/bannerIv"
             android:layout_width="match_parent"
             android:layout_height="120dp"
             android:background="@color/black"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-        </FrameLayout>
+            app:layout_constraintTop_toTopOf="parent"/>
 
         <TextView
             android:id="@+id/titleTv"
@@ -36,7 +34,7 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/coverIv"
-            app:layout_constraintTop_toBottomOf="@id/frameLayout" />
+            app:layout_constraintTop_toBottomOf="@id/bannerIv" />
 
         <TextView
             android:id="@+id/authorTv"
@@ -53,12 +51,12 @@
 
         <ImageView
             android:id="@+id/coverIv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="95dp"
+            android:layout_height="150dp"
             android:layout_margin="30dp"
-            app:layout_constraintBottom_toBottomOf="@id/frameLayout"
+            app:layout_constraintBottom_toBottomOf="@id/bannerIv"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/frameLayout"
+            app:layout_constraintTop_toTopOf="@id/bannerIv"
             app:layout_constraintVertical_bias="0"
             app:srcCompat="@drawable/content" />
 
