@@ -1,75 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_gravity="center_horizontal"
     android:background="@color/white"
-    android:foregroundGravity="center_horizontal">
+    tools:context=".ui.homepage.HomeActivity">
 
+    <!-- MAIN CONTENT AREA -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:foregroundGravity="center_horizontal"
-        android:gravity="center_horizontal"
+        android:id="@+id/mainContentLayout"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavBar"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
+        <!-- SEARCH BAR -->
+        <SearchView
+            android:id="@+id/bookSv"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="12dp">
-
-            <SearchView
-                android:id="@+id/bookSv"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@drawable/search_bkg"
-                android:focusable="false"
-                app:closeIcon="@drawable/baseline_clear_24"
-                app:iconifiedByDefault="false"
-                app:queryHint="Title, Author, or ISBN"
-                app:searchHintIcon="@null"
-                app:searchIcon="@drawable/baseline_search_24" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/scanIsbnBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Scan"
-                android:textAllCaps="false"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                app:backgroundTint="@color/main_green"
-                app:cornerRadius="12dp"
-                app:icon="@drawable/ic_scanner"
-                app:iconGravity="textStart"
-                app:iconPadding="4dp"
-                app:iconSize="20dp"
-                app:strokeColor="@color/black"
-                app:strokeWidth="1dp" />
-
-        </LinearLayout>
+            android:background="@drawable/search_bkg"
+            android:focusable="false"
+            app:closeIcon="@drawable/baseline_clear_24"
+            app:iconifiedByDefault="false"
+            app:queryHint="Title, Author or ISBN"
+            app:searchHintIcon="@null"
+            app:searchIcon="@drawable/baseline_search_24"
+            android:paddingVertical="6dp"
+            android:layout_marginBottom="12dp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/bookListRv"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:foregroundGravity="center_horizontal"
-            android:paddingStart="40dp"
-            android:paddingEnd="20dp"
-            app:spanCount="2" />
-
+            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:gravity="center"
+            tools:listitem="@layout/books_card_layout" />
     </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/bottomNavBar"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        app:cardCornerRadius="30dp"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:backgroundTint="@color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:weightSum="5">
+
+            <ImageButton
+                android:id="@+id/navHomeBtn"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_home"
+                android:contentDescription="Home"
+                android:scaleType="centerInside"
+                android:padding="6dp" />
+
+            <ImageButton
+                android:id="@+id/navSearchBtn"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:src="@drawable/baseline_search_24"
+                android:contentDescription="Search"
+                android:scaleType="centerInside"
+                android:padding="6dp" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/navScanBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_scanner"
+                app:backgroundTint="@color/main_green"
+                app:maxImageSize="28dp"
+                app:tint="@color/white"
+                android:layout_marginHorizontal="8dp"
+                android:scaleType="center" />
+
+            <ImageButton
+                android:id="@+id/navSavedBtn"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_bookmark"
+                android:contentDescription="Saved Books"
+                android:scaleType="centerInside"
+                android:padding="6dp" />
+
+            <ImageButton
+                android:id="@+id/navProfileBtn"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_person"
+                android:contentDescription="Profile"
+                android:scaleType="centerInside"
+                android:padding="6dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

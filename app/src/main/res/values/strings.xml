@@ -26,5 +26,6 @@
     <string name="username_holder">Kasani Tito</string>
     <string name="review_holder">We\'re sooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo back</string>
     <string name="likes_holder">67</string>
+    <string name="book_image" />
 
 </resources>

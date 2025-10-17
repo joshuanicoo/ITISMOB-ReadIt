@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import android.util.Size
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -24,7 +26,7 @@ import com.mobdeve.s17.group39.itismob_mco.databinding.ScannerActivityBinding
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-@androidx.camera.core.ExperimentalGetImage
+@ExperimentalGetImage
 class ScannerActivity : AppCompatActivity() {
     private lateinit var binding: ScannerActivityBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -32,10 +34,13 @@ class ScannerActivity : AppCompatActivity() {
     private var isProcessing = false
     private var cameraProvider: ProcessCameraProvider? = null
     private var hasCameraPermission = false
+    private var lastProcessedTime = 0L
+    private var cameraRetryCount = 0
 
     companion object {
         const val SCANNED_ISBN_RESULT = "scanned_isbn_result"
-        private const val TAG = "ScannerActivity"
+        private const val PROCESSING_DELAY_MS = 500L
+        private const val MAX_CAMERA_RETRIES = 3
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -45,7 +50,7 @@ class ScannerActivity : AppCompatActivity() {
             hasCameraPermission = true
             startCamera()
         } else {
-            Toast.makeText(this, "Camera permission is required for barcode scanning", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Camera permission required for scanning", Toast.LENGTH_LONG).show()
             setupTestMode()
         }
     }
@@ -62,10 +67,7 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun checkCameraPermission() {
         when {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED -> {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
                 hasCameraPermission = true
                 startCamera()
             }
@@ -96,18 +98,18 @@ class ScannerActivity : AppCompatActivity() {
     }
 
     private fun setupTestMode() {
-        Toast.makeText(this, "Test Mode: Use buttons below", Toast.LENGTH_LONG).show()
-        addTestButtons()
+        if (isEmulator()) {
+            Toast.makeText(this, "Test Mode Active", Toast.LENGTH_SHORT).show()
+            addTestButtons()
+        }
         showManualInputOption()
     }
 
     private fun isEmulator(): Boolean {
-        return (android.os.Build.FINGERPRINT.startsWith("generic") ||
-                android.os.Build.FINGERPRINT.contains("vbox") ||
+        return android.os.Build.FINGERPRINT.startsWith("generic") ||
                 android.os.Build.MODEL.contains("google_sdk") ||
                 android.os.Build.MODEL.contains("Emulator") ||
-                android.os.Build.MODEL.contains("Android SDK") ||
-                android.os.Build.MANUFACTURER.contains("Genymotion"))
+                android.os.Build.MODEL.contains("Android SDK built for")
     }
 
     private fun addTestButtons() {
@@ -119,16 +121,13 @@ class ScannerActivity : AppCompatActivity() {
         val testIsbns = listOf(
             "9780141439518" to "Pride and Prejudice",
             "9780439708180" to "Harry Potter 1",
-            "9780545010221" to "Harry Potter 2",
-            "9780439358071" to "Harry Potter 3"
+            "9780545010221" to "Harry Potter 2"
         )
 
         testIsbns.forEach { (isbn, title) ->
             val testButton = android.widget.Button(this).apply {
-                text = "$title"
-                setOnClickListener {
-                    simulateScan(isbn)
-                }
+                text = title
+                setOnClickListener { simulateScan(isbn) }
                 setBackgroundColor(resources.getColor(android.R.color.holo_green_dark, theme))
                 setTextColor(resources.getColor(android.R.color.white, theme))
                 layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -171,17 +170,20 @@ class ScannerActivity : AppCompatActivity() {
         cameraProviderFuture.addListener({
             try {
                 cameraProvider = cameraProviderFuture.get()
-                bindCameraUseCases()
+                if (cameraProvider?.availableCameraInfos?.isNotEmpty() == true) {
+                    bindCameraUseCases()
+                } else {
+                    handleCameraError()
+                    Toast.makeText(this, "No camera available", Toast.LENGTH_LONG).show()
+                }
             } catch (exc: Exception) {
-                Toast.makeText(this, "Camera not available", Toast.LENGTH_LONG).show()
-                setupTestMode()
+                handleCameraError()
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun bindCameraUseCases() {
         val cameraProvider = cameraProvider ?: return
-
         cameraProvider.unbindAll()
 
         val cameraSelector = buildCameraSelector(cameraProvider)
@@ -194,6 +196,7 @@ class ScannerActivity : AppCompatActivity() {
 
         val imageAnalysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setTargetResolution(Size(1280, 720))
             .build()
             .also {
                 it.setAnalyzer(cameraExecutor) { imageProxy ->
@@ -203,10 +206,10 @@ class ScannerActivity : AppCompatActivity() {
 
         try {
             cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
-            Toast.makeText(this, "Camera ready for scanning", Toast.LENGTH_SHORT).show()
+            cameraRetryCount = 0 // reset on successss
+            Toast.makeText(this, "Camera started successfully", Toast.LENGTH_SHORT).show()
         } catch (exc: Exception) {
-            Toast.makeText(this, "Camera binding failed", Toast.LENGTH_SHORT).show()
-            setupTestMode()
+            handleCameraError()
         }
     }
 
@@ -219,7 +222,9 @@ class ScannerActivity : AppCompatActivity() {
             } catch (e2: Exception) {
                 if (cameraProvider.availableCameraInfos.isNotEmpty()) {
                     CameraSelector.Builder()
-                        .addCameraFilter { cameraInfos -> cameraInfos }
+                        .addCameraFilter { cameraInfos ->
+                            if (cameraInfos.isNotEmpty()) listOf(cameraInfos[0]) else emptyList()
+                        }
                         .build()
                 } else {
                     throw IllegalStateException("No cameras available")
@@ -228,25 +233,26 @@ class ScannerActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleCameraError() {
+        if (cameraRetryCount < MAX_CAMERA_RETRIES) {
+            cameraRetryCount++
+            Handler(Looper.getMainLooper()).postDelayed({
+                startCamera()
+            }, 1000L * cameraRetryCount)
+        } else {
+            setupTestMode()
+            Toast.makeText(this, "Camera initialization failed. Using manual input mode.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun showManualInputOption() {
         val inputLayout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
-            setBackgroundColor(resources.getColor(android.R.color.background_light, theme))
         }
-
-        val titleText = android.widget.TextView(this).apply {
-            text = "Manual ISBN Entry"
-            textSize = 18f
-            setTextColor(resources.getColor(android.R.color.black, theme))
-            gravity = android.view.Gravity.CENTER
-        }
-        inputLayout.addView(titleText)
 
         val manualInput = android.widget.EditText(this).apply {
-            hint = "Enter 10 or 13 digit ISBN..."
-            setTextColor(resources.getColor(android.R.color.black, theme))
-            setHintTextColor(resources.getColor(android.R.color.darker_gray, theme))
+            hint = "Enter ISBN (10 or 13 digits)"
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
@@ -260,14 +266,10 @@ class ScannerActivity : AppCompatActivity() {
             text = "Submit ISBN"
             setOnClickListener {
                 val isbn = manualInput.text.toString().trim()
-                if (isbn.isNotEmpty()) {
-                    if (isValidIsbn(isbn)) {
-                        simulateScan(isbn)
-                    } else {
-                        Toast.makeText(context, "Invalid ISBN format", Toast.LENGTH_SHORT).show()
-                    }
+                if (isbn.isNotEmpty() && isValidIsbn(isbn)) {
+                    simulateScan(isbn)
                 } else {
-                    Toast.makeText(context, "Please enter an ISBN", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Please enter valid ISBN", Toast.LENGTH_SHORT).show()
                 }
             }
             setBackgroundColor(resources.getColor(android.R.color.holo_blue_dark, theme))
@@ -287,35 +289,43 @@ class ScannerActivity : AppCompatActivity() {
     }
 
     private fun processImageProxy(imageProxy: ImageProxy) {
-        if (isProcessing) return
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastProcessedTime < PROCESSING_DELAY_MS || isProcessing) {
+            imageProxy.close()
+            return
+        }
 
         isProcessing = true
-        @androidx.camera.core.ExperimentalGetImage
+        lastProcessedTime = currentTime
+
+        @ExperimentalGetImage
         val mediaImage = imageProxy.image
-        if (mediaImage != null) {
+        if (mediaImage == null) {
+            imageProxy.close()
+            isProcessing = false
+            return
+        }
+
+        try {
             val inputImage = InputImage.fromMediaImage(
                 mediaImage,
                 imageProxy.imageInfo.rotationDegrees
             )
 
             barcodeScanner.process(inputImage)
+                .addOnCompleteListener {
+                    imageProxy.close()
+                    isProcessing = false
+                }
                 .addOnSuccessListener { barcodes ->
                     for (barcode in barcodes) {
                         barcode.rawValue?.let { barcodeValue ->
                             handleScannedBarcode(barcodeValue)
-                            imageProxy.close()
-                            isProcessing = false
                             return@addOnSuccessListener
                         }
                     }
-                    imageProxy.close()
-                    isProcessing = false
                 }
-                .addOnFailureListener { exception ->
-                    imageProxy.close()
-                    isProcessing = false
-                }
-        } else {
+        } catch (e: Exception) {
             imageProxy.close()
             isProcessing = false
         }
@@ -324,27 +334,50 @@ class ScannerActivity : AppCompatActivity() {
     private fun handleScannedBarcode(barcodeValue: String) {
         runOnUiThread {
             val cleanIsbn = barcodeValue.replace("[^\\dX]".toRegex(), "")
-
             if (isValidIsbn(cleanIsbn)) {
-                Toast.makeText(this, "ISBN Found: $cleanIsbn", Toast.LENGTH_SHORT).show()
                 val resultIntent = Intent().apply {
                     putExtra(SCANNED_ISBN_RESULT, cleanIsbn)
                 }
                 setResult(RESULT_OK, resultIntent)
                 finish()
             } else {
-                Toast.makeText(this, "Invalid ISBN: $cleanIsbn", Toast.LENGTH_SHORT).show()
                 isProcessing = false
+                Toast.makeText(this, "Invalid ISBN format: $cleanIsbn", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun isValidIsbn(isbn: String): Boolean {
-        return when (isbn.length) {
-            10 -> true
-            13 -> true
+        val cleanIsbn = isbn.replace("[^\\dX]".toRegex(), "")
+        return when (cleanIsbn.length) {
+            10 -> isValidIsbn10(cleanIsbn)
+            13 -> isValidIsbn13(cleanIsbn)
             else -> false
         }
+    }
+
+    private fun isValidIsbn10(isbn: String): Boolean {
+        if (isbn.length != 10) return false
+        var sum = 0
+        for (i in 0 until 9) {
+            val digit = isbn[i] - '0'
+            if (digit < 0 || digit > 9) return false
+            sum += (digit * (10 - i))
+        }
+        val lastChar = isbn[9]
+        sum += if (lastChar == 'X') 10 else (lastChar - '0')
+        return sum % 11 == 0
+    }
+
+    private fun isValidIsbn13(isbn: String): Boolean {
+        if (isbn.length != 13) return false
+        var sum = 0
+        for (i in isbn.indices) {
+            val digit = isbn[i] - '0'
+            if (digit < 0 || digit > 9) return false
+            sum += digit * if (i % 2 == 0) 1 else 3
+        }
+        return sum % 10 == 0
     }
 
     override fun onDestroy() {

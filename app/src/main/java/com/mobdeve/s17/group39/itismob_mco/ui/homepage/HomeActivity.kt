@@ -45,10 +45,27 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        binding.scanIsbnBtn.setOnClickListener {
+        binding.navScanBtn.setOnClickListener {
             openScanner()
         }
+
+        binding.navHomeBtn.setOnClickListener {
+            Toast.makeText(this, "You are already on Home", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.navSearchBtn.setOnClickListener {
+
+        }
+
+        binding.navSavedBtn.setOnClickListener {
+
+        }
+
+        binding.navProfileBtn.setOnClickListener {
+
+        }
     }
+
 
     private fun openScanner() {
         val intent = Intent(this, ScannerActivity::class.java)
