@@ -19,24 +19,45 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <SearchView
-            android:id="@+id/bookSv"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="12dp"
-            android:background="@drawable/search_bkg"
-            android:focusable="false"
-            app:closeIcon="@drawable/baseline_clear_24"
-            app:iconifiedByDefault="false"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:queryHint="Title, Author, or ISBN"
-            app:searchHintIcon="@null"
-            app:searchIcon="@drawable/baseline_search_24">
+            android:orientation="horizontal"
+            android:padding="12dp">
 
+            <SearchView
+                android:id="@+id/bookSv"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/search_bkg"
+                android:focusable="false"
+                app:closeIcon="@drawable/baseline_clear_24"
+                app:iconifiedByDefault="false"
+                app:queryHint="Title, Author, or ISBN"
+                app:searchHintIcon="@null"
+                app:searchIcon="@drawable/baseline_search_24" />
 
-        </SearchView>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scanIsbnBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Scan"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/main_green"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_scanner"
+                app:iconGravity="textStart"
+                app:iconPadding="4dp"
+                app:iconSize="20dp"
+                app:strokeColor="@color/black"
+                app:strokeWidth="1dp" />
+
+        </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/bookListRv"
