@@ -1,4 +1,4 @@
-package com.mobdeve.s17.group39.itismob_mco.ui.viewbook
+package com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review
 
 data class ReviewModel(
     val userPfpResId: Int,

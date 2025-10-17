@@ -1,11 +1,12 @@
-package com.mobdeve.s17.group39.itismob_mco.ui.viewbook
+package com.mobdeve.s17.group39.itismob_mco.ui.viewbook.genre
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.recyclerview.widget.RecyclerView.Adapter
+import androidx.recyclerview.widget.RecyclerView
 import com.mobdeve.s17.group39.itismob_mco.databinding.GenreItemLayoutBinding
+import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.genre.GenreViewHolder
 
-class GenreAdapter (private val data: ArrayList<String>) : Adapter<GenreViewHolder>() {
+class GenreAdapter (private val data: ArrayList<String>) : RecyclerView.Adapter<GenreViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GenreViewHolder {
             val itemViewBinding: GenreItemLayoutBinding = GenreItemLayoutBinding.inflate(

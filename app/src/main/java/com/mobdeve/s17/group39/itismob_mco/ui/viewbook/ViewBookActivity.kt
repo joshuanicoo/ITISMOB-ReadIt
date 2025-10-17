@@ -1,11 +1,21 @@
 package com.mobdeve.s17.group39.itismob_mco.ui.viewbook
 
+import android.app.Dialog
 import android.os.Bundle
+import android.view.ViewGroup
+import android.view.Window
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.mobdeve.s17.group39.itismob_mco.R
+import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
+import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
+import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.genre.GenreAdapter
+import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review.ReviewAdapter
+import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review.ReviewModel
 
 class ViewBookActivity : AppCompatActivity() {
     companion object {
@@ -27,6 +37,7 @@ class ViewBookActivity : AppCompatActivity() {
 
         this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
         setContentView(viewBookVB.root)
+
 
         val titleString = intent.getStringExtra(TITLE_KEY).toString()
         val authorString = intent.getStringExtra(AUTHOR_KEY).toString()
@@ -56,6 +67,7 @@ class ViewBookActivity : AppCompatActivity() {
             dataGenre.addAll(genres)
         }
 
+        // Recycler view for genres
         this.viewBookVB.genreRv.adapter = GenreAdapter(dataGenre)
         this.viewBookVB.genreRv.layoutManager = LinearLayoutManager(
             this,
@@ -63,6 +75,7 @@ class ViewBookActivity : AppCompatActivity() {
             false
         )
 
+        // Recycler view for reviews
         val dataReviews = generateReviews()
         this.viewBookVB.reviewRv.adapter = ReviewAdapter(dataReviews)
         this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
@@ -78,67 +91,133 @@ class ViewBookActivity : AppCompatActivity() {
             }
         }
 
-        var isAdded = false
+        viewBookVB.reviewBtn.setOnClickListener {
+            showReviewDialog()
+        }
+
         viewBookVB.addToListBtn.setOnClickListener {
-            isAdded = !isAdded
-            if (isAdded) {
-                viewBookVB.addToListBtn.setIconResource(R.drawable.ic_add_on)
+            showAddToListDialog()
+        }
+    }
+
+    fun showReviewDialog() {
+        val dialog = Dialog(this@ViewBookActivity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setCancelable(true)
+        val binding = ReviewBookLayoutBinding.inflate(layoutInflater)
+        dialog.setContentView(binding.root)
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+        val titleString = intent.getStringExtra(TITLE_KEY).toString()
+        val imageUrl = intent.getStringExtra(IMAGE_URL)
+
+        binding.bookTitleDialogTv.text = titleString
+        Glide.with(this.applicationContext)
+            .load(imageUrl)
+            .placeholder(R.drawable.content)
+            .error(R.drawable.content)
+            .centerCrop()
+            .into(binding.bookCoverDialogIv)
+
+        var isLiked = false
+        binding.likeDialogBtn.setOnClickListener {
+            isLiked = !isLiked
+            if (isLiked) {
+                binding.likeDialogBtn.setImageResource(R.drawable.ic_heart_on)
             } else {
-                viewBookVB.addToListBtn.setIconResource(R.drawable.ic_add_off)
+                binding.likeDialogBtn.setImageResource(R.drawable.ic_heart_off)
             }
         }
 
+        binding.saveReviewBtn.setOnClickListener {
+            Toast.makeText(this@ViewBookActivity, "Review added to your diary", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
 
+        binding.cancelReviewBtn.setOnClickListener {
+            dialog.dismiss()
+        }
 
+        dialog.show()
+    }
+
+    fun showAddToListDialog() {
+        val dialog = Dialog(this@ViewBookActivity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setCancelable(true)
+        val binding = AddToListLayoutBinding.inflate(layoutInflater)
+        dialog.setContentView(binding.root)
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+        binding.addToListDialogBtn.setOnClickListener {
+            Toast.makeText(this@ViewBookActivity, "Successfully added to list", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        binding.cancelAddToListBtn.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun generateReviews(): ArrayList<ReviewModel> {
         val tempData = ArrayList<ReviewModel>()
 
-        tempData.add(ReviewModel(
-            userPfpResId = R.drawable.user_pfp_1,
-            username = "Kasane Teto",
-            userRating = 4.5f,
-            reviewBody = "Absolutely loved this book! Couldn't put it down.",
-            isLikedByCurrentUser = true,
-            likesCount = 67
-        ))
+        tempData.add(
+            ReviewModel(
+                userPfpResId = R.drawable.user_pfp_1,
+                username = "Kasane Teto",
+                userRating = 4.5f,
+                reviewBody = "Absolutely loved this book! Couldn't put it down.",
+                isLikedByCurrentUser = true,
+                likesCount = 67
+            )
+        )
 
-        tempData.add(ReviewModel(
-            userPfpResId = R.drawable.user_pfp_2,
-            username = "BookWorm42",
-            userRating = 3.0f,
-            reviewBody = "Good premise but slow pacing in the middle chapters.",
-            isLikedByCurrentUser = false,
-            likesCount = 23
-        ))
+        tempData.add(
+            ReviewModel(
+                userPfpResId = R.drawable.user_pfp_2,
+                username = "BookWorm42",
+                userRating = 3.0f,
+                reviewBody = "Good premise but slow pacing in the middle chapters.",
+                isLikedByCurrentUser = false,
+                likesCount = 23
+            )
+        )
 
-        tempData.add(ReviewModel(
-            userPfpResId = R.drawable.user_pfp_3,
-            username = "LiteraryExplorer",
-            userRating = 5.0f,
-            reviewBody = "Masterpiece! The character development was incredible.",
-            isLikedByCurrentUser = true,
-            likesCount = 89
-        ))
+        tempData.add(
+            ReviewModel(
+                userPfpResId = R.drawable.user_pfp_3,
+                username = "LiteraryExplorer",
+                userRating = 5.0f,
+                reviewBody = "Masterpiece! The character development was incredible.",
+                isLikedByCurrentUser = true,
+                likesCount = 89
+            )
+        )
 
-        tempData.add(ReviewModel(
-            userPfpResId = R.drawable.user_pfp_4,
-            username = "CriticalReader",
-            userRating = 2.5f,
-            reviewBody = "Interesting concept but poor execution.",
-            isLikedByCurrentUser = false,
-            likesCount = 12
-        ))
+        tempData.add(
+            ReviewModel(
+                userPfpResId = R.drawable.user_pfp_4,
+                username = "CriticalReader",
+                userRating = 2.5f,
+                reviewBody = "Interesting concept but poor execution.",
+                isLikedByCurrentUser = false,
+                likesCount = 12
+            )
+        )
 
-        tempData.add(ReviewModel(
-            userPfpResId = R.drawable.user_pfp_5,
-            username = "PageTurner",
-            userRating = 4.0f,
-            reviewBody = "Great weekend read, highly recommend!",
-            isLikedByCurrentUser = true,
-            likesCount = 45
-        ))
+        tempData.add(
+            ReviewModel(
+                userPfpResId = R.drawable.user_pfp_5,
+                username = "PageTurner",
+                userRating = 4.0f,
+                reviewBody = "Great weekend read, highly recommend!",
+                isLikedByCurrentUser = true,
+                likesCount = 45
+            )
+        )
 
         return tempData
     }

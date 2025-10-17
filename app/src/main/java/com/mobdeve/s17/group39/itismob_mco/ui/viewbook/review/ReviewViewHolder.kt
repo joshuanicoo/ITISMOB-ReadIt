@@ -1,10 +1,6 @@
-package com.mobdeve.s17.group39.itismob_mco.ui.viewbook
+package com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review
 
-import android.util.Log
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewItemLayoutBinding
 
 class ReviewViewHolder (private val viewBinding: ReviewItemLayoutBinding): RecyclerView.ViewHolder(viewBinding.root) {
