@@ -1,14 +1,18 @@
 package com.mobdeve.s17.group39.itismob_mco.login
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SnapHelper
 import com.mobdeve.s17.group39.itismob_mco.login.LoginAdapter
 import com.mobdeve.s17.group39.itismob_mco.login.LoginOnboardingModel
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.databinding.LoginActivityBinding
+import com.mobdeve.s17.group39.itismob_mco.ui.homepage.HomeActivity
+import com.mobdeve.s17.group39.itismob_mco.ui.scanner.ScannerActivity
 
 class LoginActivity : AppCompatActivity() {
 
@@ -34,6 +38,30 @@ class LoginActivity : AppCompatActivity() {
             LinearLayoutManager.HORIZONTAL,
             false
         )
+        setupTabLayoutIndicator()
+
+        binding.loginBtn.setOnClickListener {
+            val intent = Intent(this, HomeActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun setupTabLayoutIndicator() {
+        for (i in 0 until 3) {
+            binding.loginIndicator.addTab(binding.loginIndicator.newTab())
+        }
+
+        binding.loginRv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+                if (firstVisibleItemPosition != RecyclerView.NO_POSITION) {
+                    binding.loginIndicator.getTabAt(firstVisibleItemPosition)?.select()
+                }
+            }
+        })
     }
 
     private fun loadData(): ArrayList<LoginOnboardingModel> {
