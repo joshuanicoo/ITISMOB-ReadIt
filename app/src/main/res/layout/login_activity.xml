@@ -44,7 +44,7 @@
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/loginIndicator"
-        android:layout_width="20dp"
+        android:layout_width="30dp"
         android:layout_height="7dp"
         android:layout_marginBottom="20dp"
         android:backgroundTint="@color/white"
@@ -71,10 +71,10 @@
         app:backgroundTint="@color/main_green"
         app:cornerRadius="30dp"
         app:icon="@drawable/ic_google_scale"
-        app:iconGravity="textStart"
+        app:iconGravity="start"
         app:iconPadding="8dp"
         app:iconSize="30dp"
-        app:iconTint="@null"
+        app:iconTint="@android:color/transparent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

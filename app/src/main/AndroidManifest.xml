@@ -43,6 +43,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.profile.ProfileActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.scanner.ScannerActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" />

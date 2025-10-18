@@ -14,6 +14,7 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.compose.ui.text.toLowerCase
 import androidx.recyclerview.widget.GridLayoutManager
 import com.mobdeve.s17.group39.itismob_mco.databinding.HomeActivityBinding
+import com.mobdeve.s17.group39.itismob_mco.ui.profile.ProfileActivity
 import com.mobdeve.s17.group39.itismob_mco.ui.savedbooks.SavedListsActivity
 import com.mobdeve.s17.group39.itismob_mco.ui.scanner.ScannerActivity
 import retrofit2.Call
@@ -181,7 +182,8 @@ class HomeActivity : AppCompatActivity() {
         }
 
         binding.navProfileBtn.setOnClickListener {
-            // insert profile screen
+            val intent = Intent(this, ProfileActivity::class.java)
+            startActivity(intent)
         }
     }
 
