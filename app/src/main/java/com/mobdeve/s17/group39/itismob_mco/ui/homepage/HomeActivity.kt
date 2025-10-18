@@ -149,6 +149,27 @@ class HomeActivity : AppCompatActivity() {
         })
     }
 
+    private fun searchByISBN(query: String){
+        val call = apiInterface.getBookByISBN(query)
+        call.enqueue(object : Callback<GoogleBooksResponse> {
+            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    data = response.body()!!
+                    adapter.updateData(data.items)
+                    hideLoading()
+                } else {
+                    hideLoading()
+                    Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+                }
+            }
+            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                t.printStackTrace()
+                hideLoading()
+                Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
     private fun setupClickListeners() {
         binding.navScanBtn.setOnClickListener {
             openScanner()
@@ -172,6 +193,11 @@ class HomeActivity : AppCompatActivity() {
     private fun searchBookByIsbn(isbn: String) {
         if (isbn.isNotEmpty()) {
             Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
+            //
+
+            var concatISBN = "isbn:$isbn"
+            searchByISBN(concatISBN)
+
             // update this api for isbn search (backend)
             // toast temporary
         } else {

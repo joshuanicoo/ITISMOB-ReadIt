@@ -27,6 +27,7 @@
             app:closeIcon="@drawable/baseline_clear_24"
             app:iconifiedByDefault="false"
             app:queryHint="Title, Author or ISBN"
+            android:textColorHint="@color/light_grey"
             app:searchHintIcon="@null"
             app:searchIcon="@drawable/baseline_search_24"
             android:paddingVertical="6dp"

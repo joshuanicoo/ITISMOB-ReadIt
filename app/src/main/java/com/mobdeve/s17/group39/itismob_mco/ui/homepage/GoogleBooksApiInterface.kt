@@ -15,4 +15,12 @@ interface GoogleBooksApiInterface {
         @Query("maxResults") maxResults: Int,
         @Query("printType") printType: String
     ): Call<GoogleBooksResponse>
+
+    @GET("volumes")
+    fun getBookByISBN(
+        @Query("q") isbn: String,
+        @Query("maxResults") maxResults: Int = 40,
+        @Query("printType") printType: String = "books"
+    ): Call<GoogleBooksResponse>
+
 }
