@@ -37,7 +37,6 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
         holder.itemView.startAnimation(AnimationUtils.loadAnimation(holder.itemView.getContext(), R.anim.anim_one))
 
         holder.itemView.setOnClickListener {
-            // custom listener if set, default if not
             if (onItemClickListener != null) {
                 onItemClickListener?.invoke(data[position], position)
             } else {

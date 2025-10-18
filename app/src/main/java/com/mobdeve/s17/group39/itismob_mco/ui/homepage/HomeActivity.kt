@@ -13,10 +13,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ExperimentalGetImage
 import androidx.compose.ui.text.toLowerCase
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.mobdeve.s17.group39.itismob_mco.databinding.HomeActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.profile.ProfileActivity
 import com.mobdeve.s17.group39.itismob_mco.ui.savedbooks.SavedListsActivity
 import com.mobdeve.s17.group39.itismob_mco.ui.scanner.ScannerActivity
+import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.genre.GenreAdapter
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -29,6 +31,8 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var adapter: HomeAdapter
     private lateinit var apiInterface: GoogleBooksApiInterface
     private lateinit var handler: Handler
+
+    private lateinit var genreAdapter: HomeGenreAdapter
 
     private val scannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -51,6 +55,7 @@ class HomeActivity : AppCompatActivity() {
         setupRecyclerView()
         showLoading()
         getBooks()
+
         handler = Handler(Looper.getMainLooper())
 
         this.binding.bookSv.clearFocus()
@@ -60,6 +65,7 @@ class HomeActivity : AppCompatActivity() {
         this.binding.bookSv.setOnClickListener { view ->
             binding.bookSv.onActionViewExpanded()
         }
+
 
         this.binding.bookSv.setOnQueryTextListener(object: SearchView.OnQueryTextListener{
 
@@ -96,6 +102,18 @@ class HomeActivity : AppCompatActivity() {
         this.adapter = HomeAdapter(mutableListOf())
         this.binding.bookListRv.adapter = adapter
         this.binding.bookListRv.layoutManager = GridLayoutManager(this, 2)
+
+
+        var genreString = "Fiction, Mystery, Romance, Science Fiction, Fantasy, Thriller, Biography, History, Horror, Young Adult, Comedy, Adventure"
+        val dataGenre = ArrayList<String>()
+        if (!genreString.isNullOrEmpty()) {
+            val genres = genreString.split(",").map { it.trim() }
+            dataGenre.addAll(genres)
+        }
+        this.genreAdapter = HomeGenreAdapter(dataGenre)
+        this.binding.genreListRv.adapter = genreAdapter
+        this.binding.genreListRv.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+
     }
 
     private fun showLoading() {
@@ -106,6 +124,10 @@ class HomeActivity : AppCompatActivity() {
     private fun hideLoading() {
         binding.loadingProgressBar.visibility = View.GONE
         binding.bookListRv.visibility = View.VISIBLE
+    }
+
+    private fun handleGenreSelect() {
+
     }
 
     private fun getBooks() {
