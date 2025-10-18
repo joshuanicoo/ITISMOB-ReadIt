@@ -48,7 +48,6 @@ class BooksInListActivity : AppCompatActivity() {
         binding.booksInListRv.adapter = adapter
         binding.booksInListRv.layoutManager = GridLayoutManager(this, 2)
 
-        // Set up click listener for books - THIS WILL BE USED INSTEAD OF THE DEFAULT ONE
         adapter.setOnItemClickListener { volume, position ->
             openBookDetails(volume, position)
         }
@@ -64,11 +63,11 @@ class BooksInListActivity : AppCompatActivity() {
         val searchQuery = when (listName) {
             "Currently Reading" -> "roshidere"
             "Want to Read" -> "angel next door"
-            "Read" -> "manga"
+            "Read" -> "The Detective is already dead"
             "Favorites" -> "that time i got reincarnated"
             "To Buy" -> "new releases"
             "Summer Reading" -> "beach reads"
-            "Classics" -> "classic novels"
+            "Classics" -> "classroom of the elite"
             "Non-Fiction" -> "non-fiction bestsellers"
             else -> "popular books"
         }

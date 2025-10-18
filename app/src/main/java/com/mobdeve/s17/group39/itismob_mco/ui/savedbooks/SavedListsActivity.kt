@@ -27,14 +27,14 @@ class SavedListsActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         val sampleLists = arrayListOf(
-            SavedList("Currently Reading", 5),
-            SavedList("Want to Read", 12),
-            SavedList("Read", 8),
-            SavedList("Favorites", 3),
-            SavedList("To Buy", 7),
-            SavedList("Summer Reading", 4),
+            SavedList("Currently Reading", 6),
+            SavedList("Want to Read", 6),
+            SavedList("Read", 6),
+            SavedList("Favorites", 6),
+            SavedList("To Buy", 6),
+            SavedList("Summer Reading", 6),
             SavedList("Classics", 6),
-            SavedList("Non-Fiction", 9)
+            SavedList("Non-Fiction", 6)
         )
 
         adapter = SavedListsAdapter(sampleLists) { list ->
