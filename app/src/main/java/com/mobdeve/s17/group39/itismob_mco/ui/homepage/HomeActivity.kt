@@ -6,13 +6,16 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.ExperimentalGetImage
 import androidx.recyclerview.widget.GridLayoutManager
 import com.mobdeve.s17.group39.itismob_mco.databinding.HomeActivityBinding
+import com.mobdeve.s17.group39.itismob_mco.ui.savedbooks.SavedListsActivity
 import com.mobdeve.s17.group39.itismob_mco.ui.scanner.ScannerActivity
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
+@ExperimentalGetImage
 class HomeActivity : AppCompatActivity() {
     private lateinit var data: GoogleBooksResponse
     private lateinit var binding: HomeActivityBinding
@@ -58,7 +61,8 @@ class HomeActivity : AppCompatActivity() {
         }
 
         binding.navSavedBtn.setOnClickListener {
-
+            val intent = Intent(this, SavedListsActivity::class.java)
+            startActivity(intent)
         }
 
         binding.navProfileBtn.setOnClickListener {

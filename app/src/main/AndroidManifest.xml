@@ -46,6 +46,16 @@
             android:name=".ui.scanner.ScannerActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" />
+
+        <activity
+            android:name=".ui.savedbooks.SavedListsActivity"
+            android:exported="false"
+            android:label="Your Lists" />
+
+        <activity
+            android:name=".ui.savedbooks.BooksInListActivity"
+            android:exported="false"
+            android:label="Books in List" />
     </application>
 
 </manifest>

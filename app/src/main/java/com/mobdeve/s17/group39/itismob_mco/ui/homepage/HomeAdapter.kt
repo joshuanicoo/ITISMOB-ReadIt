@@ -7,8 +7,13 @@ import androidx.recyclerview.widget.RecyclerView.Adapter
 import com.mobdeve.s17.group39.itismob_mco.databinding.BooksCardLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.ViewBookActivity
 
-
 class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
+
+    private var onItemClickListener: ((Volume, Int) -> Unit)? = null
+
+    fun setOnItemClickListener(listener: (Volume, Int) -> Unit) {
+        onItemClickListener = listener
+    }
 
     fun updateData(newData : List<Volume>) {
         this.data = newData
@@ -29,21 +34,21 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
         holder.bindData(data[position])
 
         holder.itemView.setOnClickListener {
-            val nextIntent = Intent(holder.itemView.context,
-                ViewBookActivity::class.java)
-            val position = holder.adapterPosition
-            val authorsString = data.get(position).volumeInfo.authors?.joinToString(", ")
-            val genreString = data.get(position).volumeInfo.categories?.joinToString(", ")
-            val imageUrl = holder.getEnhancedImageUrl(data.get(position))
+            onItemClickListener?.invoke(data[position], position)
 
-            nextIntent.putExtra(ViewBookActivity.Companion.TITLE_KEY, data.get(position).volumeInfo.title)
-            nextIntent.putExtra(ViewBookActivity.Companion.AUTHOR_KEY, authorsString)
-            nextIntent.putExtra(ViewBookActivity.Companion.DESCRIPTION_KEY, data.get(position).volumeInfo.description)
-            nextIntent.putExtra(ViewBookActivity.Companion.AVG_RATING_KEY, data.get(position).volumeInfo.averageRating)
-            nextIntent.putExtra(ViewBookActivity.Companion.RATING_COUNT_KEY, data.get(position).volumeInfo.ratingsCount)
-            nextIntent.putExtra(ViewBookActivity.Companion.GENRE_KEY, genreString)
-            nextIntent.putExtra(ViewBookActivity.Companion.POSITION_KEY, position)
-            nextIntent.putExtra(ViewBookActivity.Companion.IMAGE_URL, imageUrl)
+            val nextIntent = Intent(holder.itemView.context, ViewBookActivity::class.java)
+            val authorsString = data[position].volumeInfo.authors?.joinToString(", ")
+            val genreString = data[position].volumeInfo.categories?.joinToString(", ")
+            val imageUrl = holder.getEnhancedImageUrl(data[position])
+
+            nextIntent.putExtra(ViewBookActivity.TITLE_KEY, data[position].volumeInfo.title)
+            nextIntent.putExtra(ViewBookActivity.AUTHOR_KEY, authorsString)
+            nextIntent.putExtra(ViewBookActivity.DESCRIPTION_KEY, data[position].volumeInfo.description)
+            nextIntent.putExtra(ViewBookActivity.AVG_RATING_KEY, data[position].volumeInfo.averageRating)
+            nextIntent.putExtra(ViewBookActivity.RATING_COUNT_KEY, data[position].volumeInfo.ratingsCount)
+            nextIntent.putExtra(ViewBookActivity.GENRE_KEY, genreString)
+            nextIntent.putExtra(ViewBookActivity.POSITION_KEY, position)
+            nextIntent.putExtra(ViewBookActivity.IMAGE_URL, imageUrl)
 
             holder.itemView.context.startActivity(nextIntent)
         }
@@ -52,5 +57,4 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
     override fun getItemCount(): Int {
         return data.size
     }
-
 }
