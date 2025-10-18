@@ -34,24 +34,31 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
         holder.bindData(data[position])
 
         holder.itemView.setOnClickListener {
-            onItemClickListener?.invoke(data[position], position)
-
-            val nextIntent = Intent(holder.itemView.context, ViewBookActivity::class.java)
-            val authorsString = data[position].volumeInfo.authors?.joinToString(", ")
-            val genreString = data[position].volumeInfo.categories?.joinToString(", ")
-            val imageUrl = holder.getEnhancedImageUrl(data[position])
-
-            nextIntent.putExtra(ViewBookActivity.TITLE_KEY, data[position].volumeInfo.title)
-            nextIntent.putExtra(ViewBookActivity.AUTHOR_KEY, authorsString)
-            nextIntent.putExtra(ViewBookActivity.DESCRIPTION_KEY, data[position].volumeInfo.description)
-            nextIntent.putExtra(ViewBookActivity.AVG_RATING_KEY, data[position].volumeInfo.averageRating)
-            nextIntent.putExtra(ViewBookActivity.RATING_COUNT_KEY, data[position].volumeInfo.ratingsCount)
-            nextIntent.putExtra(ViewBookActivity.GENRE_KEY, genreString)
-            nextIntent.putExtra(ViewBookActivity.POSITION_KEY, position)
-            nextIntent.putExtra(ViewBookActivity.IMAGE_URL, imageUrl)
-
-            holder.itemView.context.startActivity(nextIntent)
+            // custom listener if set, default if not
+            if (onItemClickListener != null) {
+                onItemClickListener?.invoke(data[position], position)
+            } else {
+                openBookDetails(holder, data[position], position)
+            }
         }
+    }
+
+    private fun openBookDetails(holder: HomeViewHolder, volume: Volume, position: Int) {
+        val nextIntent = Intent(holder.itemView.context, ViewBookActivity::class.java)
+        val authorsString = volume.volumeInfo.authors?.joinToString(", ")
+        val genreString = volume.volumeInfo.categories?.joinToString(", ")
+        val imageUrl = holder.getEnhancedImageUrl(volume)
+
+        nextIntent.putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title)
+        nextIntent.putExtra(ViewBookActivity.AUTHOR_KEY, authorsString)
+        nextIntent.putExtra(ViewBookActivity.DESCRIPTION_KEY, volume.volumeInfo.description)
+        nextIntent.putExtra(ViewBookActivity.AVG_RATING_KEY, volume.volumeInfo.averageRating)
+        nextIntent.putExtra(ViewBookActivity.RATING_COUNT_KEY, volume.volumeInfo.ratingsCount)
+        nextIntent.putExtra(ViewBookActivity.GENRE_KEY, genreString)
+        nextIntent.putExtra(ViewBookActivity.POSITION_KEY, position)
+        nextIntent.putExtra(ViewBookActivity.IMAGE_URL, imageUrl)
+
+        holder.itemView.context.startActivity(nextIntent)
     }
 
     override fun getItemCount(): Int {

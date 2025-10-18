@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.mobdeve.s17.group39.itismob_mco.databinding.BooksInListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.homepage.*
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.ViewBookActivity
+import com.mobdeve.s17.group39.itismob_mco.utils.ImageUtils
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -47,6 +48,7 @@ class BooksInListActivity : AppCompatActivity() {
         binding.booksInListRv.adapter = adapter
         binding.booksInListRv.layoutManager = GridLayoutManager(this, 2)
 
+        // Set up click listener for books - THIS WILL BE USED INSTEAD OF THE DEFAULT ONE
         adapter.setOnItemClickListener { volume, position ->
             openBookDetails(volume, position)
         }
@@ -60,10 +62,10 @@ class BooksInListActivity : AppCompatActivity() {
         val listName = intent.getStringExtra(LIST_NAME_KEY) ?: "List"
 
         val searchQuery = when (listName) {
-            "Currently Reading" -> "popular fiction"
-            "Want to Read" -> "bestsellers 2024"
-            "Read" -> "classic literature"
-            "Favorites" -> "award winning books"
+            "Currently Reading" -> "roshidere"
+            "Want to Read" -> "angel next door"
+            "Read" -> "manga"
+            "Favorites" -> "that time i got reincarnated"
             "To Buy" -> "new releases"
             "Summer Reading" -> "beach reads"
             "Classics" -> "classic novels"
@@ -85,10 +87,8 @@ class BooksInListActivity : AppCompatActivity() {
                     val booksResponse = response.body()!!
                     if (booksResponse.items.isNotEmpty()) {
                         adapter.updateData(booksResponse.items)
-                        // update soon w actual count
                         binding.bookCountHeaderTv.text = "${booksResponse.items.size} books"
                     } else {
-                        // fallback
                         showFallbackBooks()
                     }
                 } else {
@@ -130,7 +130,6 @@ class BooksInListActivity : AppCompatActivity() {
                     ),
                     pageCount = 300,
                     language = "en",
-                    // Add other required nullable parameters with null values
                     industryIdentifiers = null,
                     readingModes = null,
                     printedPageCount = null,
@@ -172,7 +171,6 @@ class BooksInListActivity : AppCompatActivity() {
                     ),
                     pageCount = 250,
                     language = "en",
-                    // Add other required nullable parameters with null values
                     industryIdentifiers = null,
                     readingModes = null,
                     printedPageCount = null,
@@ -199,7 +197,9 @@ class BooksInListActivity : AppCompatActivity() {
         val intent = Intent(this, ViewBookActivity::class.java)
         val authorsString = volume.volumeInfo.authors?.joinToString(", ")
         val genreString = volume.volumeInfo.categories?.joinToString(", ")
-        val imageUrl = volume.volumeInfo.imageLinks?.thumbnail
+
+        // Use ImageUtils to get enhanced image URL (fixes HTTP issue)
+        val imageUrl = ImageUtils.getEnhancedImageUrl(volume)
 
         intent.putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title)
         intent.putExtra(ViewBookActivity.AUTHOR_KEY, authorsString)
