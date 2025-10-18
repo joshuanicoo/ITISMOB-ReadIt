@@ -42,8 +42,23 @@
             android:paddingHorizontal="8dp"
             android:paddingVertical="4dp"
             android:gravity="center"
+            android:visibility="gone"
             tools:listitem="@layout/books_card_layout" />
     </LinearLayout>
+
+    <com.google.android.material.progressindicator.CircularProgressIndicator
+        android:id="@+id/loadingProgressBar"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:indeterminate="true"
+        app:indicatorColor="@color/main_green"
+        app:trackColor="@color/light_grey"
+        app:trackThickness="6dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:visibility="visible" />
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/bottomNavBar"

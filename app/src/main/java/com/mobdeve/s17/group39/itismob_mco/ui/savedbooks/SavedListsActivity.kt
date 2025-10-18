@@ -71,7 +71,6 @@ class SavedListsActivity : AppCompatActivity() {
         binding.saveNewListBtn.setOnClickListener {
             val listName = binding.newListNameEt.text.toString().trim()
             if (listName.isNotEmpty()) {
-                // Add new list logic here
                 Toast.makeText(this, "List '$listName' created", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             } else {

@@ -2,6 +2,7 @@ package com.mobdeve.s17.group39.itismob_mco.ui.savedbooks
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -32,7 +33,18 @@ class BooksInListActivity : AppCompatActivity() {
         setupUI()
         setupRecyclerView()
         getApiInterface()
+        showLoading()
         fetchBooksForList()
+    }
+
+    private fun showLoading() {
+        binding.loadingProgressBar.visibility = View.VISIBLE
+        binding.booksInListRv.visibility = View.GONE
+    }
+
+    private fun hideLoading() {
+        binding.loadingProgressBar.visibility = View.GONE
+        binding.booksInListRv.visibility = View.VISIBLE
     }
 
     private fun setupUI() {
@@ -93,12 +105,14 @@ class BooksInListActivity : AppCompatActivity() {
                 } else {
                     showFallbackBooks()
                 }
+                hideLoading()
             }
 
             override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
                 t.printStackTrace()
                 Toast.makeText(this@BooksInListActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
                 showFallbackBooks()
+                hideLoading()
             }
         })
     }
@@ -190,6 +204,7 @@ class BooksInListActivity : AppCompatActivity() {
         )
         adapter.updateData(fallbackBooks)
         binding.bookCountHeaderTv.text = "${fallbackBooks.size} books"
+        hideLoading()
     }
 
     private fun openBookDetails(volume: Volume, position: Int) {
@@ -197,7 +212,6 @@ class BooksInListActivity : AppCompatActivity() {
         val authorsString = volume.volumeInfo.authors?.joinToString(", ")
         val genreString = volume.volumeInfo.categories?.joinToString(", ")
 
-        // Use ImageUtils to get enhanced image URL (fixes HTTP issue)
         val imageUrl = ImageUtils.getEnhancedImageUrl(volume)
 
         intent.putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title)

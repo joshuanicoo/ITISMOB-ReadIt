@@ -3,6 +3,7 @@ package com.mobdeve.s17.group39.itismob_mco.ui.homepage
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -39,12 +40,47 @@ class HomeActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         getApiInterface()
-        getBooks()
         setupClickListeners()
+        setupRecyclerView()
+        showLoading()
+        getBooks()
+    }
 
+    private fun setupRecyclerView() {
         this.adapter = HomeAdapter(mutableListOf())
         this.binding.bookListRv.adapter = adapter
         this.binding.bookListRv.layoutManager = GridLayoutManager(this, 2)
+    }
+
+    private fun showLoading() {
+        binding.loadingProgressBar.visibility = View.VISIBLE
+        binding.bookListRv.visibility = View.GONE
+    }
+
+    private fun hideLoading() {
+        binding.loadingProgressBar.visibility = View.GONE
+        binding.bookListRv.visibility = View.VISIBLE
+    }
+
+    private fun getBooks() {
+        val call = apiInterface.getBooks()
+        call.enqueue(object : Callback<GoogleBooksResponse> {
+            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    data = response.body()!!
+                    adapter.updateData(data.items)
+                    hideLoading()
+                } else {
+                    hideLoading()
+                    Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+                }
+            }
+            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                t.printStackTrace()
+                hideLoading()
+                Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun setupClickListeners() {
@@ -58,10 +94,9 @@ class HomeActivity : AppCompatActivity() {
         }
 
         binding.navProfileBtn.setOnClickListener {
-        //insert profile screen
+            // insert profile screen
         }
     }
-
 
     private fun openScanner() {
         val intent = Intent(this, ScannerActivity::class.java)
@@ -71,7 +106,6 @@ class HomeActivity : AppCompatActivity() {
     private fun searchBookByIsbn(isbn: String) {
         if (isbn.isNotEmpty()) {
             Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
-
             // update this api for isbn search (backend)
             // toast temporary
         } else {
@@ -81,21 +115,5 @@ class HomeActivity : AppCompatActivity() {
 
     private fun getApiInterface() {
         apiInterface = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
-    }
-
-    private fun getBooks() {
-        val call = apiInterface.getBooks()
-        call.enqueue(object : Callback<GoogleBooksResponse> {
-            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
-                if (response.isSuccessful && response.body() != null) {
-                    data = response.body()!!
-                    adapter.updateData(data.items)
-                }
-            }
-            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                t.printStackTrace()
-                Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
-            }
-        })
     }
 }

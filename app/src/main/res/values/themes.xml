@@ -3,6 +3,8 @@
         <item name="colorPrimary">@color/main_green</item>
         <item name="colorSecondary">@color/white</item>
         <item name="android:statusBarColor">?attr/colorPrimary</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
     </style>
     <style name="Theme.ITISMob_MCO" parent="Base.Theme.ITISMob_MCO" />
 </resources>
