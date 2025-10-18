@@ -14,9 +14,11 @@ import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
+import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.genre.GenreAdapter
+import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.list.AddToListAdapter
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.review.ReviewModel
 import jp.wasabeef.glide.transformations.BlurTransformation
@@ -170,12 +172,54 @@ class ViewBookActivity : AppCompatActivity() {
         dialog.setContentView(binding.root)
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
+        val dataLists = arrayListOf(
+            "Currently Reading",
+            "Want to Read",
+            "Read",
+            "Favorites",
+            "To Buy",
+            "Summer Reading",
+            "Classics",
+            "Non-Fiction"
+        )
+
+        binding.addToListRv.adapter = AddToListAdapter(dataLists)
+        binding.addToListRv.layoutManager = LinearLayoutManager(this)
+
+        binding.newListBtn.setOnClickListener {
+            dialog.dismiss()
+            showNewListDialog()
+        }
+
         binding.addToListDialogBtn.setOnClickListener {
             Toast.makeText(this@ViewBookActivity, "Successfully added to list", Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
         binding.cancelAddToListBtn.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    fun showNewListDialog() {
+        val dialog = Dialog(this@ViewBookActivity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setCancelable(true)
+        val binding = NewListLayoutBinding.inflate(layoutInflater)
+        dialog.setContentView(binding.root)
+
+        val heightInPixels = (200 * resources.displayMetrics.density).toInt()
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
+
+
+        binding.saveNewListBtn.setOnClickListener {
+            Toast.makeText(this@ViewBookActivity, "Successfully created list", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        binding.cancelNewListBtn.setOnClickListener {
             dialog.dismiss()
         }
 

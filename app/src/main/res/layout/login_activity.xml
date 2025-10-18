@@ -36,22 +36,23 @@
         android:id="@+id/loginRv"
         android:layout_width="0dp"
         android:layout_height="450dp"
-        android:layout_marginBottom="30dp"
-        app:layout_constraintBottom_toTopOf="@+id/loginBtn"
+        android:layout_marginBottom="20dp"
+        app:layout_constraintBottom_toTopOf="@+id/loginIndicator"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/loginIndicator"
         android:layout_width="20dp"
         android:layout_height="7dp"
+        android:layout_marginBottom="20dp"
         android:backgroundTint="@color/white"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
+        android:paddingStart="5dp"
+        android:paddingEnd="5dp"
         app:layout_constraintBottom_toTopOf="@+id/loginBtn"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/loginRv"
         app:tabBackground="@drawable/tab_indicator_selector"
         app:tabGravity="center"
         app:tabIndicatorHeight="0dp" />
