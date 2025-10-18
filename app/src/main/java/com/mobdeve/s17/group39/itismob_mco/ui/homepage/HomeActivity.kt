@@ -3,11 +3,15 @@ package com.mobdeve.s17.group39.itismob_mco.ui.homepage
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
+import android.widget.SearchView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ExperimentalGetImage
+import androidx.compose.ui.text.toLowerCase
 import androidx.recyclerview.widget.GridLayoutManager
 import com.mobdeve.s17.group39.itismob_mco.databinding.HomeActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.savedbooks.SavedListsActivity
@@ -15,6 +19,7 @@ import com.mobdeve.s17.group39.itismob_mco.ui.scanner.ScannerActivity
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.Locale
 
 @ExperimentalGetImage
 class HomeActivity : AppCompatActivity() {
@@ -22,6 +27,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var binding: HomeActivityBinding
     private lateinit var adapter: HomeAdapter
     private lateinit var apiInterface: GoogleBooksApiInterface
+    private lateinit var handler: Handler
 
     private val scannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -44,6 +50,45 @@ class HomeActivity : AppCompatActivity() {
         setupRecyclerView()
         showLoading()
         getBooks()
+        handler = Handler(Looper.getMainLooper())
+
+        this.binding.bookSv.clearFocus()
+        binding.bookSv.isFocusable = true
+        binding.bookSv.isClickable = true
+
+        this.binding.bookSv.setOnClickListener { view ->
+            binding.bookSv.onActionViewExpanded()
+        }
+
+        this.binding.bookSv.setOnQueryTextListener(object: SearchView.OnQueryTextListener{
+
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                val searchText = query?.toLowerCase(Locale.getDefault()) ?: ""
+                if (searchText.isNotEmpty()) {
+                    handler.removeCallbacksAndMessages(null)
+                    searchBooks(searchText, 40, "books")
+                } else {
+                    getBooks()
+                }
+                return true
+            }
+
+            override fun onQueryTextChange(query: String?): Boolean {
+                val searchText = query?.toLowerCase(Locale.getDefault()) ?: ""
+                handler.removeCallbacksAndMessages(null)
+                if (searchText.isNotEmpty()) {
+                    handler.postDelayed({
+                        searchBooks(searchText, 40, "books")
+                    }, 500)
+                } else {
+                    getBooks()
+                }
+                return true
+            }
+
+        })
+
+
     }
 
     private fun setupRecyclerView() {
@@ -64,6 +109,27 @@ class HomeActivity : AppCompatActivity() {
 
     private fun getBooks() {
         val call = apiInterface.getBooks()
+        call.enqueue(object : Callback<GoogleBooksResponse> {
+            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    data = response.body()!!
+                    adapter.updateData(data.items)
+                    hideLoading()
+                } else {
+                    hideLoading()
+                    Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+                }
+            }
+            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                t.printStackTrace()
+                hideLoading()
+                Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun searchBooks(query : String, size: Int, printType: String){
+        val call = apiInterface.searchBooks(query, size, printType)
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful && response.body() != null) {

@@ -6,13 +6,13 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface GoogleBooksApiInterface {
-    @GET("volumes?q=there's+no+freaking+way&maxResults=10&printType=books")
+    @GET("volumes?q=subject:fiction&maxResults=40&printType=books&orderBy=relevance")
     fun getBooks(): Call<GoogleBooksResponse>
 
     @GET("volumes")
     fun searchBooks(
         @Query("q") query: String,
-        @Query("maxResults") maxResults: Int = 10,
-        @Query("printType") printType: String = "books"
+        @Query("maxResults") maxResults: Int,
+        @Query("printType") printType: String
     ): Call<GoogleBooksResponse>
 }

@@ -4,8 +4,10 @@ import android.content.Intent
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView.Adapter
+import android.view.animation.AnimationUtils
 import com.mobdeve.s17.group39.itismob_mco.databinding.BooksCardLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.viewbook.ViewBookActivity
+import com.mobdeve.s17.group39.itismob_mco.R
 
 class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
 
@@ -32,6 +34,7 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
 
     override fun onBindViewHolder(holder: HomeViewHolder, position: Int) {
         holder.bindData(data[position])
+        holder.itemView.startAnimation(AnimationUtils.loadAnimation(holder.itemView.getContext(), R.anim.anim_one))
 
         holder.itemView.setOnClickListener {
             // custom listener if set, default if not
@@ -41,6 +44,7 @@ class HomeAdapter(private var data: List<Volume>): Adapter<HomeViewHolder>() {
                 openBookDetails(holder, data[position], position)
             }
         }
+
     }
 
     private fun openBookDetails(holder: HomeViewHolder, volume: Volume, position: Int) {

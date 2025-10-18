@@ -86,7 +86,8 @@ class BooksInListActivity : AppCompatActivity() {
 
         val call = apiInterface.searchBooks(
             query = searchQuery,
-            maxResults = 6
+            maxResults = 6,
+            printType = "books"
         )
 
         call.enqueue(object : Callback<GoogleBooksResponse> {
