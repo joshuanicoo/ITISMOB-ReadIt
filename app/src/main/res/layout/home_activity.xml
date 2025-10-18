@@ -8,7 +8,6 @@
     android:background="@color/white"
     tools:context=".ui.homepage.HomeActivity">
 
-    <!-- MAIN CONTENT AREA -->
     <LinearLayout
         android:id="@+id/mainContentLayout"
         android:layout_width="0dp"
@@ -20,7 +19,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- SEARCH BAR -->
         <SearchView
             android:id="@+id/bookSv"
             android:layout_width="match_parent"
@@ -49,56 +47,22 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/bottomNavBar"
-        android:layout_width="match_parent"
-        android:layout_height="65dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="12dp"
+        android:layout_width="280dp"
+        android:layout_height="70dp"
         app:cardCornerRadius="30dp"
         app:cardElevation="8dp"
+        android:backgroundTint="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:backgroundTint="@color/white">
+        android:layout_marginBottom="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="horizontal"
             android:gravity="center"
-            android:weightSum="5">
-
-            <ImageButton
-                android:id="@+id/navHomeBtn"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_home"
-                android:contentDescription="Home"
-                android:scaleType="centerInside"
-                android:padding="6dp" />
-
-            <ImageButton
-                android:id="@+id/navSearchBtn"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:src="@drawable/baseline_search_24"
-                android:contentDescription="Search"
-                android:scaleType="centerInside"
-                android:padding="6dp" />
-
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/navScanBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_scanner"
-                app:backgroundTint="@color/main_green"
-                app:maxImageSize="28dp"
-                app:tint="@color/white"
-                android:layout_marginHorizontal="8dp"
-                android:scaleType="center" />
+            android:weightSum="3">
 
             <ImageButton
                 android:id="@+id/navSavedBtn"
@@ -110,6 +74,17 @@
                 android:contentDescription="Saved Books"
                 android:scaleType="centerInside"
                 android:padding="6dp" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/navScanBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_scanner"
+                app:backgroundTint="@color/main_green"
+                app:maxImageSize="28dp"
+                app:tint="@color/white"
+                android:layout_marginHorizontal="12dp"
+                android:elevation="10dp" />
 
             <ImageButton
                 android:id="@+id/navProfileBtn"

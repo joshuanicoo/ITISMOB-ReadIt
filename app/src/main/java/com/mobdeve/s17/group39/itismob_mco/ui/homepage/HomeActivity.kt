@@ -52,21 +52,13 @@ class HomeActivity : AppCompatActivity() {
             openScanner()
         }
 
-        binding.navHomeBtn.setOnClickListener {
-            Toast.makeText(this, "You are already on Home", Toast.LENGTH_SHORT).show()
-        }
-
-        binding.navSearchBtn.setOnClickListener {
-
-        }
-
         binding.navSavedBtn.setOnClickListener {
             val intent = Intent(this, SavedListsActivity::class.java)
             startActivity(intent)
         }
 
         binding.navProfileBtn.setOnClickListener {
-
+        //insert profile screen
         }
     }
 
