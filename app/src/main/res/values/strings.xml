@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ITISMOB-MCO</string>
+    <string name="app_name">ReadIt</string>
 
     // login_activity
     <string name="onboarding_header">Your gateway to countless stories.</string>
