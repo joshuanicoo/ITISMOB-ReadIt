@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "939320437291",
+    "project_id": "readit-9153c",
+    "storage_bucket": "readit-9153c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939320437291:android:474b499107729cc118986e",
+        "android_client_info": {
+          "package_name": "com.mobdeve.s17.group39.itismob_mco"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAN2ABCZEu6-e1W863c_td8NDBMzNxvf3M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
