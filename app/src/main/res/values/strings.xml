@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">ReadIt</string>
 
+    // top secret do not share type sh
+    <string name="default_web_client_id">939320437291-73gtufibl9jpbece3n06vsnsvsa59qom.apps.googleusercontent.com</string>
     // login_activity
     <string name="onboarding_header">Your gateway to countless stories.</string>
     <string name="onboarding_body">Track the books you love, rate and review every

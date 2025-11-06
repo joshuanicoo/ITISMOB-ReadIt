@@ -1,29 +1,44 @@
 package com.mobdeve.s17.group39.itismob_mco.login
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SnapHelper
-import com.mobdeve.s17.group39.itismob_mco.login.LoginAdapter
-import com.mobdeve.s17.group39.itismob_mco.login.LoginOnboardingModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.firebase.auth.FirebaseAuth
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.tasks.Task
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.GoogleAuthProvider
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.databinding.LoginActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.homepage.HomeActivity
-import com.mobdeve.s17.group39.itismob_mco.ui.scanner.ScannerActivity
+import androidx.core.content.edit
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var data: ArrayList<LoginOnboardingModel>
     private lateinit var binding: LoginActivityBinding
     private lateinit var adapter: LoginAdapter
+    lateinit var mGoogleSignInClient: GoogleSignInClient
+    val Req_Code: Int = 123
+    private lateinit var firebaseAuth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = LoginActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        FirebaseApp.initializeApp(this)
 
         this.data = loadData()
 
@@ -40,12 +55,90 @@ class LoginActivity : AppCompatActivity() {
         )
         setupTabLayoutIndicator()
 
+        // Google Auth stuff
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestEmail() // Fetch email from G
+            .requestProfile() // Fetch profile details from G
+            .build()
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gso)
+        firebaseAuth = FirebaseAuth.getInstance()
+
         binding.loginBtn.setOnClickListener {
-            val intent = Intent(this, HomeActivity::class.java)
-            startActivity(intent)
+            signInGoogle()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser != null) {
+            startActivity(Intent(this, HomeActivity::class.java))
             finish()
         }
     }
+
+    private fun signInGoogle() {
+        val signInIntent: Intent = mGoogleSignInClient.signInIntent
+        startActivityForResult(signInIntent, Req_Code)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == Req_Code) {
+            val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(data)
+            handleResult(task)
+        }
+    }
+
+    private fun handleResult(completedTask: Task<GoogleSignInAccount>) {
+        try {
+            val account: GoogleSignInAccount? = completedTask.getResult(ApiException::class.java)
+            if (account != null) {
+                UpdateUI(account)
+            } else {
+                Toast.makeText(this, "Google sign in failed", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(this, "Failed: " + e.statusCode, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun UpdateUI(account: GoogleSignInAccount) {
+        val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+        firebaseAuth.signInWithCredential(credential).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val firebaseUser = firebaseAuth.currentUser
+
+                if (firebaseUser != null) {
+                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+                    val user = hashMapOf(
+                        "uid" to firebaseUser.uid,
+                        "username" to account.displayName,
+                        "email" to account.email,
+                        "pfp" to account.photoUrl?.toString()
+                    )
+
+                    db.collection("users").document(firebaseUser.uid)
+                        .set(user)
+                        .addOnSuccessListener {
+                            Toast.makeText(this, "Welcome, ${account.displayName}!", Toast.LENGTH_SHORT).show()
+                            val intent = Intent(this, HomeActivity::class.java)
+                            startActivity(intent)
+                            finish()
+                        }
+                        .addOnFailureListener { e: Exception ->
+                            Toast.makeText(this, "Failed to save user data: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+
+                }
+            } else {
+                Toast.makeText(this, "Firebase authentication failed: ${task.exception?.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
 
     private fun setupTabLayoutIndicator() {
         for (i in 0 until 3) {
