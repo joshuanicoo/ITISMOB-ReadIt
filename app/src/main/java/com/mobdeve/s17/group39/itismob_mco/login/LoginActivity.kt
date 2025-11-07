@@ -1,6 +1,5 @@
 package com.mobdeve.s17.group39.itismob_mco.login
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -17,12 +16,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.GoogleAuthProvider
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.databinding.LoginActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.ui.homepage.HomeActivity
-import androidx.core.content.edit
 
 class LoginActivity : AppCompatActivity() {
 
