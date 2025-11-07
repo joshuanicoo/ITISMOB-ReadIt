@@ -117,7 +117,11 @@ class LoginActivity : AppCompatActivity() {
                         "uid" to firebaseUser.uid,
                         "username" to account.displayName,
                         "email" to account.email,
-                        "pfp" to account.photoUrl?.toString()
+                        "profile_picture" to account.photoUrl?.toString(),
+                        "bio" to null,
+                        "favorites" to null,
+                        "date_created" to com.google.firebase.Timestamp.now(),
+                        "date_updated" to com.google.firebase.Timestamp.now()
                     )
 
                     db.collection("users").document(firebaseUser.uid)
