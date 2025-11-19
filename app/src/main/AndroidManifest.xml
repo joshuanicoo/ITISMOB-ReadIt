@@ -23,7 +23,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ITISMob_MCO">
         <activity
-            android:name=".login.LoginActivity"
+            android:name=".features.authentication.login.LoginActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.ITISMob_MCO">
@@ -35,29 +35,29 @@
         </activity>
 
         <activity
-            android:name=".ui.homepage.HomeActivity"
+            android:name=".features.homepage.HomeActivity"
             android:exported="false" />
 
         <activity
-            android:name=".ui.viewbook.ViewBookActivity"
+            android:name=".features.viewbook.ViewBookActivity"
             android:exported="false" />
 
         <activity
-            android:name=".ui.profile.ProfileActivity"
+            android:name=".features.profile.ProfileActivity"
             android:exported="false" />
 
         <activity
-            android:name=".ui.scanner.ScannerActivity"
+            android:name=".features.scanner.ScannerActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" />
 
         <activity
-            android:name=".ui.savedbooks.SavedListsActivity"
+            android:name=".features.savedbooks.SavedListsActivity"
             android:exported="false"
             android:label="Your Lists" />
 
         <activity
-            android:name=".ui.savedbooks.BooksInListActivity"
+            android:name=".features.savedbooks.BooksInListActivity"
             android:exported="false"
             android:label="Books in List" />
     </application>
