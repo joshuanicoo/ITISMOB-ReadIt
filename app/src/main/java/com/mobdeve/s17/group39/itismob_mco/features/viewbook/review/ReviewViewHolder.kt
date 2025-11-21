@@ -13,11 +13,21 @@ class ReviewViewHolder(val binding: ReviewItemLayoutBinding) :
         // Set username
         binding.usernameTv.text = review.username
 
-        // Set rating (convert Int to Float for RatingBar)
-        binding.userRatingRb.rating = review.rating.toFloat()
+        // Set rating
+        binding.userRatingRb.rating = review.rating
 
         // Set review comment
         binding.reviewBodyTv.text = review.comment
+
+        // Set likes count
+        binding.likesTv.text = review.likes.toString()
+
+        // Show if the author of the review liked the book
+        updateAuthorLikeUI(review.authorLikedBook)
+
+        // Show if the current user liked this review
+        val isLikedByCurrentUser = review.likedBy.contains(currentUserId)
+        updateReviewLikeUI(isLikedByCurrentUser)
 
         // Load user profile picture
         if (!review.userProfilePicture.isNullOrEmpty()) {
@@ -28,20 +38,27 @@ class ReviewViewHolder(val binding: ReviewItemLayoutBinding) :
                 .circleCrop()
                 .into(binding.userPfpIv)
         } else {
-            // Use default placeholder if no profile picture
             binding.userPfpIv.setImageResource(R.drawable.user_pfp_placeholder)
         }
-
-        // Update like button state based on whether current user liked this review
-        val isLikedByCurrentUser = review.likedBy.contains(currentUserId)
-        updateLikeButtonUI(isLikedByCurrentUser)
     }
 
-    private fun updateLikeButtonUI(isLiked: Boolean) {
-        if (isLiked) {
+    private fun updateAuthorLikeUI(authorLikedBook: Boolean) {
+        // This shows if the review author liked the book
+        if (authorLikedBook) {
             binding.isLikedIv.setImageResource(R.drawable.ic_heart_on)
+            binding.isLikedIv.visibility = android.view.View.VISIBLE
         } else {
             binding.isLikedIv.setImageResource(R.drawable.ic_heart_off)
+            binding.isLikedIv.visibility = android.view.View.GONE // Hide if author didn't like the book
+        }
+    }
+
+    private fun updateReviewLikeUI(isLikedByCurrentUser: Boolean) {
+        // This shows if the current user liked this review
+        if (isLikedByCurrentUser) {
+            binding.likeReviewBtn.setImageResource(R.drawable.ic_heart_on)
+        } else {
+            binding.likeReviewBtn.setImageResource(R.drawable.ic_heart_off)
         }
     }
 }

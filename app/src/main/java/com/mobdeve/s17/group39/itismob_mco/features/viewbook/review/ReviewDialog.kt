@@ -1,4 +1,4 @@
-package com.mobdeve.s17.group39.itismob_mco.features.viewbook.dialogs
+package com.mobdeve.s17.group39.itismob_mco.features.viewbook.review
 
 import android.app.Dialog
 import android.content.Context
@@ -11,6 +11,8 @@ import com.mobdeve.s17.group39.itismob_mco.database.ReviewsDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 import com.google.firebase.Timestamp
+import com.mobdeve.s17.group39.itismob_mco.models.BookModel
+import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 
 class ReviewDialog(
     private val context: Context,
@@ -19,15 +21,19 @@ class ReviewDialog(
     private val bookDocumentId: String,
     private val currentUserDocumentId: String,
     private val currentUsername: String?,
+    private val googleBooksId: String,
     private val isBookLiked: Boolean,
     private val onReviewSubmitted: () -> Unit,
-    private val onLikeToggled: (Boolean) -> Unit
+    private val onLikeToggled: (Boolean) -> Unit,
+    private val existingUserRating: Float
 ) {
 
     private lateinit var dialog: Dialog
     private lateinit var binding: ReviewBookLayoutBinding
+    private val sharedPrefs = SharedPrefsManager(context)
     private var isLiked = isBookLiked
 
+    // Displays the Dialog
     fun show() {
         dialog = Dialog(context)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -54,8 +60,22 @@ class ReviewDialog(
             .centerCrop()
             .into(binding.bookCoverDialogIv)
 
-        // Set initial like button state
-        updateLikeButtonUI()
+        // Pre-fill with existing review data if user has already reviewed
+        checkExistingReview { existingReview ->
+            if (existingReview != null) {
+                // User already has a review, pre-fill the dialog
+                binding.rateDialogRb.rating = existingReview.rating
+                binding.reviewBodyEt.setText(existingReview.comment)
+                binding.reviewBodyEt.setSelection(existingReview.comment.length) // Move cursor to end
+            } else {
+                // No existing review, use the passed rating
+                binding.rateDialogRb.rating = existingUserRating
+            }
+        }
+
+        // Remove like button functionality from review dialog
+        binding.likeDialogBtn.visibility = android.view.View.GONE
+        binding.likeDialogHeaderTv.visibility = android.view.View.GONE
     }
 
     private fun setupClickListeners() {
@@ -73,11 +93,6 @@ class ReviewDialog(
     }
 
     private fun toggleLike() {
-        if (currentUserDocumentId.isEmpty()) {
-            Toast.makeText(context, "Please log in to like books", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         isLiked = !isLiked
         updateLikeButtonUI()
 
@@ -94,12 +109,10 @@ class ReviewDialog(
     }
 
     private fun submitReview() {
-        // Use the correct view IDs from your layout
-        val rating = binding.rateDialogRb.rating.toInt()
+        val rating = binding.rateDialogRb.rating
         val comment = binding.reviewBodyEt.text.toString().trim()
 
-        // Validate input
-        if (rating == 0) {
+        if (rating == 0f) {
             Toast.makeText(context, "Please select a rating", Toast.LENGTH_SHORT).show()
             return
         }
@@ -114,33 +127,125 @@ class ReviewDialog(
             return
         }
 
-        createReview(rating, comment)
+        // Always update or create the user's single review
+        createOrUpdateReview(rating, comment)
     }
 
-    private fun createReview(rating: Int, comment: String) {
+    private fun createOrUpdateReview(rating: Float, comment: String) {
+        // Check if user already has a review for this book
+        checkExistingReview { existingReview ->
+            if (existingReview != null) {
+                // Update existing review with new rating and comment
+                updateExistingReview(existingReview, rating, comment)
+            } else {
+                // Create new review (user's first review for this book)
+                createNewReview(rating, comment)
+            }
+        }
+    }
+
+    private fun updateExistingReview(existingReview: ReviewModel, newRating: Float, newComment: String) {
+        val updates = mapOf(
+            "rating" to newRating,
+            "comment" to newComment,
+            "authorLikedBook" to isLiked
+        )
+
+        ReviewsDatabase.update(existingReview.id, updates)
+            .addOnSuccessListener {
+                Toast.makeText(context, "Review updated successfully!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                onReviewSubmitted()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(context, "Failed to update review: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun createNewReview(rating: Float, comment: String) {
+        val userProfilePicture = sharedPrefs.getUserProfilePicture()
+
         val review = ReviewModel(
             bookId = bookDocumentId,
             userId = currentUserDocumentId,
             username = currentUsername ?: "Anonymous",
-            userProfilePicture = null,
+            userProfilePicture = userProfilePicture,
             rating = rating,
             comment = comment,
             likes = 0,
             likedBy = emptyList(),
-            createdAt = Timestamp.now()
+            createdAt = Timestamp.now(),
+            authorLikedBook = isLiked
         )
 
-        ReviewsDatabase.create(review)
-            .addOnSuccessListener { documentReference ->
-                val reviewId = documentReference.id
-                updateBookReviews(reviewId)
+        // Ensure the book exists in the books collection
+        ensureBookExists { bookCreated ->
+            if (bookCreated) {
+                ReviewsDatabase.create(review)
+                    .addOnSuccessListener { documentReference ->
+                        val reviewId = documentReference.id
+                        updateBookReviews(reviewId)
+                        Toast.makeText(context, "Review submitted successfully!", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                        onReviewSubmitted()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(context, "Failed to submit review: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+            } else {
+                Toast.makeText(context, "Failed to create book entry", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
-                Toast.makeText(context, "Review submitted successfully!", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
-                onReviewSubmitted() // Callback to refresh reviews in activity
+    private fun checkExistingReview(callback: (ReviewModel?) -> Unit) {
+        ReviewsDatabase.getReviewsByBookId(bookDocumentId)
+            .addOnSuccessListener { querySnapshot ->
+                val existingReview = querySnapshot.documents
+                    .map { document ->
+                        try {
+                            ReviewModel.fromMap(document.id, document.data!!)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    .filterNotNull()
+                    .firstOrNull { it.userId == currentUserDocumentId }
+                callback(existingReview)
             }
             .addOnFailureListener { e ->
-                Toast.makeText(context, "Failed to submit review: ${e.message}", Toast.LENGTH_SHORT).show()
+                callback(null)
+            }
+    }
+
+    private fun ensureBookExists(callback: (Boolean) -> Unit) {
+        // Check if book already exists
+        BooksDatabase.getById(bookDocumentId)
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    // Book already exists
+                    callback(true)
+                } else {
+                    // Book doesn't exist, create it
+                    createBookInCollection(callback)
+                }
+            }
+    }
+
+    private fun createBookInCollection(callback: (Boolean) -> Unit) {
+        val bookModel = BookModel(
+            documentId = bookDocumentId,
+            bookId = googleBooksId.toIntOrNull() ?: googleBooksId.hashCode(),
+            likedBy = emptyList(),
+            reviews = emptyList()
+        )
+
+        BooksDatabase.createWithId(bookDocumentId, bookModel)
+            .addOnSuccessListener {
+                callback(true)
+            }
+            .addOnFailureListener { e ->
+                callback(false)
             }
     }
 
@@ -148,10 +253,6 @@ class ReviewDialog(
         val updates = mapOf(
             "reviews" to com.google.firebase.firestore.FieldValue.arrayUnion(reviewId)
         )
-
         BooksDatabase.update(bookDocumentId, updates)
-            .addOnFailureListener { e ->
-                println("Failed to update book reviews: ${e.message}")
-            }
     }
 }

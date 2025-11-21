@@ -202,11 +202,18 @@ class LoginActivity : AppCompatActivity() {
             }
     }
 
-    private fun completeAuthentication(documentId: String, account: GoogleSignInAccount, message: String) {
+    private fun completeAuthentication(userId: String, account: GoogleSignInAccount, message: String) {
         try {
-            val token = JwtUtils.createToken(documentId, account.email ?: "", account.displayName ?: "User")
+            val token = JwtUtils.createToken(userId, account.email ?: "", account.displayName ?: "User")
             sharedPrefs.saveAuthToken(token)
-            sharedPrefs.saveUserInfo(documentId, account.email ?: "", account.displayName ?: "User")
+
+            // Save user info
+            sharedPrefs.saveUserInfo(
+                userId = userId,
+                email = account.email ?: "",
+                name = account.displayName ?: "User",
+                profilePicture = account.photoUrl?.toString() // Save the profile picture URL
+            )
 
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             navigateToHome()

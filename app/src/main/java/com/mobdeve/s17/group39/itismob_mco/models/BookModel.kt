@@ -1,10 +1,9 @@
 package com.mobdeve.s17.group39.itismob_mco.models
-
 data class BookModel(
-    val documentId: String = "",                // Firestore document ID
-    val bookId: Int = 0,                        // Google Books API ID as Int
-    val likedBy: List<String> = emptyList(),    // Array of user documentIds
-    val reviews: List<String> = emptyList()     // Array of review documentIds
+    val documentId: String = "",
+    val bookId: Int = 0,
+    val likedBy: List<String> = emptyList(),
+    val reviews: List<String> = emptyList()
 ) {
     fun toMap(): Map<String, Any> {
         return mapOf(

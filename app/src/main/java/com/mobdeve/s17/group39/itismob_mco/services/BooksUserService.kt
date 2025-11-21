@@ -1,6 +1,8 @@
-package com.mobdeve.s17.group39.itismob_mco.database
+package com.mobdeve.s17.group39.itismob_mco.services
 
 import com.google.android.gms.tasks.Tasks
+import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
+import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
 import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 
 object BookUserService {

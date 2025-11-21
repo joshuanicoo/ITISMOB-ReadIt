@@ -13,17 +13,17 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
 import com.mobdeve.s17.group39.itismob_mco.R
-import com.mobdeve.s17.group39.itismob_mco.database.BookUserService
-import com.mobdeve.s17.group39.itismob_mco.database.ReviewService
+import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
+import com.mobdeve.s17.group39.itismob_mco.services.BookUserService
 import com.mobdeve.s17.group39.itismob_mco.database.ReviewsDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
-import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
-import com.mobdeve.s17.group39.itismob_mco.features.viewbook.dialogs.ReviewDialog
+import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewDialog
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.genre.GenreAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
+import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 import jp.wasabeef.glide.transformations.BlurTransformation
@@ -57,11 +57,9 @@ class ViewBookActivity : AppCompatActivity() {
         this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
         setContentView(viewBookVB.root)
 
-        // Initialize shared preferences
         sharedPrefs = SharedPrefsManager(this)
         currentUserDocumentId = sharedPrefs.getCurrentUserId() ?: ""
 
-        // Get book data from intent
         googleBooksId = intent.getStringExtra(ID_KEY) ?: ""
         bookDocumentId = generateBookDocumentId()
 
@@ -80,7 +78,6 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.avgRatingRb.rating = avgRatingDouble.toFloat()
         viewBookVB.numberOfRatingsTv.text = ratingCountInt.toString()
 
-        // For fetching book cover
         Glide.with(this.applicationContext)
             .load(imageUrl)
             .placeholder(R.drawable.content)
@@ -88,7 +85,6 @@ class ViewBookActivity : AppCompatActivity() {
             .centerCrop()
             .into(this.viewBookVB.coverIv)
 
-        // Making a book banner using the cover
         Glide.with(this.applicationContext)
             .load(imageUrl)
             .apply(
@@ -109,7 +105,6 @@ class ViewBookActivity : AppCompatActivity() {
             dataGenre.addAll(genres)
         }
 
-        // Recycler view for genres
         this.viewBookVB.genreRv.adapter = GenreAdapter(dataGenre)
         this.viewBookVB.genreRv.layoutManager = LinearLayoutManager(
             this,
@@ -117,15 +112,12 @@ class ViewBookActivity : AppCompatActivity() {
             false
         )
 
-
-        // Recycler for book reviews
         reviewAdapter = ReviewAdapter(reviewList)
         reviewAdapter.currentUserId = currentUserDocumentId
         this.viewBookVB.reviewRv.adapter = reviewAdapter
         this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
         loadReviews()
 
-        // Initialize like state
         initializeLikeState()
 
         viewBookVB.likeBtn.setOnClickListener {
@@ -139,28 +131,43 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.addToListBtn.setOnClickListener {
             showAddToListDialog()
         }
+
+        viewBookVB.rateRb.setOnRatingBarChangeListener { ratingBar, rating, fromUser ->
+            if (fromUser && currentUserDocumentId.isNotEmpty()) {
+                handleRatingChange(rating.toFloat())
+            } else if (fromUser && currentUserDocumentId.isEmpty()) {
+                Toast.makeText(this, "Please log in to rate books", Toast.LENGTH_SHORT).show()
+                ratingBar.rating = 0f
+            }
+        }
+
+        reviewAdapter.onReviewLikeClickListener = { review, position ->
+            handleReviewLikeClick(review, position)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh reviews data to ensure like states are current
+        refreshReviewsData()
     }
 
     private fun generateBookDocumentId(): String {
-        // Generate a consistent document ID based on Google Books ID
         return "book_${googleBooksId}"
     }
 
     private fun initializeLikeState() {
         if (currentUserDocumentId.isNotEmpty() && bookDocumentId.isNotEmpty()) {
-            // Check if user has already liked this book
             BookUserService.isBookLikedByUser(currentUserDocumentId, bookDocumentId)
                 .addOnSuccessListener { liked ->
                     isLiked = liked
                     updateLikeButtonUI()
                 }
                 .addOnFailureListener {
-                    // Default to not liked if there's an error
                     isLiked = false
                     updateLikeButtonUI()
                 }
         } else {
-            // Disable like button if user is not logged in or book ID is missing
             viewBookVB.likeBtn.isEnabled = currentUserDocumentId.isNotEmpty()
             updateLikeButtonUI()
         }
@@ -172,16 +179,13 @@ class ViewBookActivity : AppCompatActivity() {
             return
         }
 
-        // Convert googleBooksId to Int (you might need to handle this conversion)
         val googleBooksIdInt = try {
             googleBooksId.toInt()
         } catch (e: NumberFormatException) {
-            // If it's not a number, use a hash code or other method
             googleBooksId.hashCode()
         }
 
         if (isLiked) {
-            // Remove like
             BookUserService.removeFromIsLiked(currentUserDocumentId, bookDocumentId)
                 .addOnSuccessListener {
                     isLiked = false
@@ -192,7 +196,6 @@ class ViewBookActivity : AppCompatActivity() {
                     Toast.makeText(this, "Failed to remove from favorites", Toast.LENGTH_SHORT).show()
                 }
         } else {
-            // Add like - this will create the book if it doesn't exist
             BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksIdInt)
                 .addOnSuccessListener {
                     isLiked = true
@@ -212,26 +215,27 @@ class ViewBookActivity : AppCompatActivity() {
             viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_off)
         }
 
-        // Enable/disable button based on login status
         viewBookVB.likeBtn.isEnabled = currentUserDocumentId.isNotEmpty()
     }
 
     private fun showReviewDialog() {
         val currentUsername = sharedPrefs.getCurrentUsername()
+        val existingUserRating = findUserRating(reviewList)
 
         ReviewDialog(
             context = this,
             bookTitle = intent.getStringExtra(TITLE_KEY).toString(),
             bookCoverUrl = intent.getStringExtra(IMAGE_URL),
             bookDocumentId = bookDocumentId,
+            googleBooksId = googleBooksId,
             currentUserDocumentId = currentUserDocumentId,
             currentUsername = currentUsername,
-            isBookLiked = isLiked, // Pass current like state
+            existingUserRating = existingUserRating,
+            isBookLiked = isLiked,
             onReviewSubmitted = {
-                loadReviews() // Refresh the reviews list after submission
+                loadReviews()
             },
             onLikeToggled = { newLikeState ->
-                // Update the main like state when toggled in dialog
                 handleLikeStateChange(newLikeState)
             }
         ).show()
@@ -239,11 +243,9 @@ class ViewBookActivity : AppCompatActivity() {
 
     private fun handleLikeStateChange(newLikeState: Boolean) {
         if (newLikeState != isLiked) {
-            // Only make Firestore call if state actually changed
             isLiked = newLikeState
             updateLikeButtonUI()
 
-            // Make the actual Firestore update
             val googleBooksIdInt = try {
                 googleBooksId.toInt()
             } catch (e: NumberFormatException) {
@@ -251,19 +253,15 @@ class ViewBookActivity : AppCompatActivity() {
             }
 
             if (newLikeState) {
-                // Add like
                 BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksIdInt)
                     .addOnFailureListener { e ->
-                        // Revert UI if failed
                         isLiked = !newLikeState
                         updateLikeButtonUI()
                         Toast.makeText(this, "Failed to like book", Toast.LENGTH_SHORT).show()
                     }
             } else {
-                // Remove like
                 BookUserService.removeFromIsLiked(currentUserDocumentId, bookDocumentId)
                     .addOnFailureListener { e ->
-                        // Revert UI if failed
                         isLiked = !newLikeState
                         updateLikeButtonUI()
                         Toast.makeText(this, "Failed to unlike book", Toast.LENGTH_SHORT).show()
@@ -273,6 +271,7 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun loadReviews() {
+
         if (bookDocumentId.isNotEmpty()) {
             ReviewsDatabase.getReviewsByBookId(bookDocumentId)
                 .addOnSuccessListener { querySnapshot ->
@@ -287,10 +286,16 @@ class ViewBookActivity : AppCompatActivity() {
                         }
                     }
 
-                    // THIS IS THE MISSING PART - UPDATE THE ADAPTER
+                    // Update the rating bar with user's existing rating
+                    val userRating = findUserRating(reviews)
+                    viewBookVB.rateRb.rating = userRating
+
+                    // Update the adapter
                     reviewList.clear()
                     reviewList.addAll(reviews)
                     reviewAdapter.notifyDataSetChanged()
+
+                    avgRating()
 
                     // Show/hide empty state
                     if (reviews.isEmpty()) {
@@ -312,6 +317,196 @@ class ViewBookActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleRatingChange(newRating: Float) {
+        if (currentUserDocumentId.isEmpty()) {
+            Toast.makeText(this, "Please log in to rate books", Toast.LENGTH_SHORT).show()
+            viewBookVB.rateRb.rating = 0f
+            return
+        }
+
+        val existingReview = reviewList.firstOrNull { it.userId == currentUserDocumentId }
+
+        if (existingReview != null) {
+            updateExistingReviewRating(existingReview, newRating)
+        } else {
+            createRatingOnlyReview(newRating)
+        }
+    }
+
+    private fun createRatingOnlyReview(rating: Float) {
+        val currentUsername = sharedPrefs.getCurrentUsername() ?: "Anonymous"
+        val userProfilePicture = sharedPrefs.getUserProfilePicture()
+
+        val review = ReviewModel(
+            bookId = bookDocumentId,
+            userId = currentUserDocumentId,
+            username = currentUsername,
+            userProfilePicture = userProfilePicture,
+            rating = rating,
+            comment = "(Rated)",
+            likes = 0,
+            likedBy = emptyList(),
+            createdAt = com.google.firebase.Timestamp.now(),
+            authorLikedBook = isLiked
+        )
+
+        ensureBookExists { bookCreated ->
+            if (bookCreated) {
+                ReviewsDatabase.create(review)
+                    .addOnSuccessListener { documentReference ->
+                        val reviewId = documentReference.id
+                        updateBookReviews(reviewId)
+                        Toast.makeText(this, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                        loadReviews()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Failed to submit rating", Toast.LENGTH_SHORT).show()
+                        viewBookVB.rateRb.rating = 0f
+                    }
+            } else {
+                Toast.makeText(this, "Failed to create book entry", Toast.LENGTH_SHORT).show()
+                viewBookVB.rateRb.rating = 0f
+            }
+        }
+    }
+
+    private fun updateExistingReviewRating(existingReview: ReviewModel, newRating: Float) {
+        val updatedReview = existingReview.copy(rating = newRating)
+
+        ReviewsDatabase.update(existingReview.id, mapOf("rating" to newRating))
+            .addOnSuccessListener {
+                Toast.makeText(this, "Rating updated!", Toast.LENGTH_SHORT).show()
+                val position = reviewList.indexOfFirst { it.id == existingReview.id }
+                if (position != -1) {
+                    reviewList[position] = updatedReview
+                    reviewAdapter.notifyItemChanged(position)
+                    avgRating()
+                }
+            }
+    }
+
+    private fun handleReviewLikeClick(review: ReviewModel, position: Int) {
+
+        ReviewsDatabase.getById(review.id)
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    val currentReview = ReviewModel.fromMap(documentSnapshot.id, documentSnapshot.data!!)
+                    val isCurrentlyLiked = currentReview.likedBy.contains(currentUserDocumentId)
+
+                    if (isCurrentlyLiked) {
+                        // Unlike the review
+                        ReviewsDatabase.unlikeReview(review.id, currentUserDocumentId)
+                            .addOnSuccessListener {
+                                // Refresh from Firestore to get the actual updated data
+                                refreshSingleReview(review.id, position)
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(this, "Failed to unlike review", Toast.LENGTH_SHORT).show()
+                            }
+                    } else {
+                        // Like the review
+                        ReviewsDatabase.likeReview(review.id, currentUserDocumentId)
+                            .addOnSuccessListener {
+                                // Refresh from Firestore to get the actual updated data
+                                refreshSingleReview(review.id, position)
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(this, "Failed to like review", Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to check review status", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun refreshSingleReview(reviewId: String, position: Int) {
+        ReviewsDatabase.getById(reviewId)
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    val updatedReview = ReviewModel.fromMap(documentSnapshot.id, documentSnapshot.data!!)
+
+                    if (position in 0 until reviewList.size) {
+                        reviewList[position] = updatedReview
+                        reviewAdapter.notifyItemChanged(position)
+                    }
+                }
+            }
+    }
+
+    private fun ensureBookExists(callback: (Boolean) -> Unit) {
+        BooksDatabase.getById(bookDocumentId)
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    callback(true)
+                } else {
+                    createBookInCollection(callback)
+                }
+            }
+            .addOnFailureListener {
+                createBookInCollection(callback)
+            }
+    }
+
+    private fun createBookInCollection(callback: (Boolean) -> Unit) {
+        val googleBooksIdInt = try {
+            googleBooksId.toInt()
+        } catch (e: NumberFormatException) {
+            googleBooksId.hashCode()
+        }
+
+        val bookModel = BookModel(
+            documentId = bookDocumentId,
+            bookId = googleBooksIdInt,
+            likedBy = emptyList(),
+            reviews = emptyList()
+        )
+
+        BooksDatabase.createWithId(bookDocumentId, bookModel)
+            .addOnSuccessListener {
+                callback(true)
+            }
+            .addOnFailureListener { e ->
+                callback(false)
+            }
+    }
+
+    private fun updateBookReviews(reviewId: String) {
+        val updates = mapOf(
+            "reviews" to com.google.firebase.firestore.FieldValue.arrayUnion(reviewId)
+        )
+        BooksDatabase.update(bookDocumentId, updates)
+    }
+
+    private fun findUserRating(reviews: List<ReviewModel>): Float {
+        return reviews
+            .firstOrNull { it.userId == currentUserDocumentId }
+            ?.rating ?: 0f
+    }
+
+    private fun avgRating() {
+        if (reviewList.isEmpty()) {
+            viewBookVB.avgRatingRb.rating = 0f
+            viewBookVB.numberOfRatingsTv.text = "0 ratings"
+            return
+        }
+
+        // Filter out reviews with 0 rating
+        val ratedReviews = reviewList.filter { it.rating > 0 }
+
+        if (ratedReviews.isEmpty()) {
+            viewBookVB.avgRatingRb.rating = 0f
+            viewBookVB.numberOfRatingsTv.text = "0 ratings"
+            return
+        }
+
+        val totalRating = ratedReviews.sumOf { it.rating.toDouble() }
+        val averageRating = totalRating / ratedReviews.size
+
+        viewBookVB.avgRatingRb.rating = averageRating.toFloat()
+        viewBookVB.numberOfRatingsTv.text = ratedReviews.size.toString()
+    }
 
     fun showAddToListDialog() {
         val dialog = Dialog(this@ViewBookActivity)
@@ -362,7 +557,6 @@ class ViewBookActivity : AppCompatActivity() {
         val heightInPixels = (200 * resources.displayMetrics.density).toInt()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
 
-
         binding.saveNewListBtn.setOnClickListener {
             Toast.makeText(this@ViewBookActivity, "Successfully created list", Toast.LENGTH_SHORT).show()
             dialog.dismiss()
@@ -373,5 +567,25 @@ class ViewBookActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun refreshReviewsData() {
+        if (bookDocumentId.isNotEmpty()) {
+            ReviewsDatabase.getReviewsByBookId(bookDocumentId)
+                .addOnSuccessListener { querySnapshot ->
+                    val reviews = mutableListOf<ReviewModel>()
+                    for (document in querySnapshot.documents) {
+                        try {
+                            val review = ReviewModel.fromMap(document.id, document.data!!)
+                            reviews.add(review)
+                        } catch (e: Exception) {
+                        }
+                    }
+
+                    reviewList.clear()
+                    reviewList.addAll(reviews)
+                    reviewAdapter.notifyDataSetChanged()
+                }
+        }
     }
 }
