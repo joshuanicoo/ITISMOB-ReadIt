@@ -11,7 +11,7 @@ object ReviewsDatabase : DatabaseHandler<ReviewModel>(FirestoreDatabase.reviewsC
     // READ - Get all reviews for a specific book
     fun getReviewsByBookId(bookId: String): Task<QuerySnapshot> {
         return collectionRef
-            .whereEqualTo("book_id", bookId)
+            .whereEqualTo("bookId", bookId)
             .get()
     }
 
