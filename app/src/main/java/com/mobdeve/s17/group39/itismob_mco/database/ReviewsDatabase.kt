@@ -4,16 +4,9 @@ import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
-import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewModel
+import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 
 object ReviewsDatabase : DatabaseHandler<ReviewModel>(FirestoreDatabase.reviewsCollection) {
-
-    // READ - Get all reviews for a specific book
-    fun getReviewsByBookId(bookId: String): Task<QuerySnapshot> {
-        return collectionRef
-            .whereEqualTo("book_id", bookId)
-            .get()
-    }
 
     // READ - Get all reviews by a specific user
     fun getReviewsByUserId(userId: String): Task<QuerySnapshot> {
