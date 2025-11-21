@@ -52,6 +52,7 @@ class HomeAdapter(private var data: List<Volume>): androidx.recyclerview.widget.
         val genreString = volume.volumeInfo.categories?.joinToString(", ")
         val imageUrl = holder.getEnhancedImageUrl(volume)
 
+        nextIntent.putExtra(ViewBookActivity.ID_KEY, volume.id)
         nextIntent.putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title)
         nextIntent.putExtra(ViewBookActivity.AUTHOR_KEY, authorsString)
         nextIntent.putExtra(ViewBookActivity.DESCRIPTION_KEY, volume.volumeInfo.description)

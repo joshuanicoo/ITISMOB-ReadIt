@@ -13,6 +13,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
 import com.mobdeve.s17.group39.itismob_mco.R
+import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
@@ -21,11 +22,13 @@ import com.mobdeve.s17.group39.itismob_mco.features.viewbook.genre.GenreAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewModel
+import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 import jp.wasabeef.glide.transformations.BlurTransformation
 import jp.wasabeef.glide.transformations.ColorFilterTransformation
 
 class ViewBookActivity : AppCompatActivity() {
     companion object {
+        const val ID_KEY = "ID_KEY"
         const val TITLE_KEY = "TITLE_KEY"
         const val AUTHOR_KEY = "AUTHOR_KEY"
         const val DESCRIPTION_KEY = "DESCRIPTION_KEY"
@@ -36,6 +39,7 @@ class ViewBookActivity : AppCompatActivity() {
         const val IMAGE_URL = "IMAGE_URL"
     }
 
+    private lateinit var sharedPrefs: SharedPrefsManager
     private lateinit var viewBookVB: ViewBookActivityBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,7 +49,7 @@ class ViewBookActivity : AppCompatActivity() {
         this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
         setContentView(viewBookVB.root)
 
-
+        val bookId = intent.getIntExtra(ID_KEY, -1)
         val titleString = intent.getStringExtra(TITLE_KEY).toString()
         val authorString = intent.getStringExtra(AUTHOR_KEY).toString()
         val descriptionString = intent.getStringExtra(DESCRIPTION_KEY).toString()
@@ -60,6 +64,9 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.descriptionTv.text = descriptionString
         viewBookVB.avgRatingRb.rating = avgRatingDouble.toFloat()
         viewBookVB.numberOfRatingsTv.text = ratingCountInt.toString()
+
+        sharedPrefs = SharedPrefsManager(this)
+        val userInfo = sharedPrefs.getUserInfo()
 
         // For fetching book cover
         Glide.with(this.applicationContext)
@@ -103,16 +110,31 @@ class ViewBookActivity : AppCompatActivity() {
         this.viewBookVB.reviewRv.adapter = ReviewAdapter(dataReviews)
         this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
 
-
         var isLiked = false
-        viewBookVB.likeBtn.setOnClickListener {
-            isLiked = !isLiked
+        // Fetch the initial liked status from db.
+        UsersDatabase.isLiked(userInfo.first!!, bookId).addOnSuccessListener { likedStatus ->
+            isLiked = likedStatus // Update local variable with the result from db
+            // Set the initial icon state based on the fetched status.
             if (isLiked) {
                 viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_on)
             } else {
                 viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_off)
             }
         }
+
+        // Set up the click listener
+        // Handle liking and unliking a book
+        viewBookVB.likeBtn.setOnClickListener {
+            isLiked = !isLiked
+            if (isLiked) {
+                viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_on)
+                UsersDatabase.addToFavorites(userInfo.first!!, bookId)
+            } else {
+                viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_off)
+                UsersDatabase.removeFromFavorites(userInfo.first!!, bookId)
+            }
+        }
+
 
         viewBookVB.reviewBtn.setOnClickListener {
             showReviewDialog()
