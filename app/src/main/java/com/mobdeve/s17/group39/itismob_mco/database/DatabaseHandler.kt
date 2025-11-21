@@ -4,6 +4,7 @@ import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.Query
 
 abstract class DatabaseHandler<T : Any>(protected val collectionRef: CollectionReference) {
@@ -17,8 +18,14 @@ abstract class DatabaseHandler<T : Any>(protected val collectionRef: CollectionR
         return collectionRef.document(documentId).set(obj)
     }
 
-    fun update(documentId: String, obj: T): Task<Void> {
-        return collectionRef.document(documentId).set(obj)
+    // Update specific fields
+    fun update(documentId: String, updates: Map<String, Any>): Task<Void> {
+        return collectionRef.document(documentId).update(updates)
+    }
+
+    // Update a single field
+    fun updateField(documentId: String, field: String, value: Any): Task<Void> {
+        return collectionRef.document(documentId).update(field, value)
     }
 
     fun delete(documentId: String): Task<Void> {

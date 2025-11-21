@@ -13,6 +13,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
 import com.mobdeve.s17.group39.itismob_mco.R
+import com.mobdeve.s17.group39.itismob_mco.database.BookUserService
 import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
@@ -21,6 +22,7 @@ import com.mobdeve.s17.group39.itismob_mco.features.viewbook.genre.GenreAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewModel
+import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 import jp.wasabeef.glide.transformations.BlurTransformation
 import jp.wasabeef.glide.transformations.ColorFilterTransformation
 
@@ -34,17 +36,29 @@ class ViewBookActivity : AppCompatActivity() {
         const val POSITION_KEY = "POSITION_KEY"
         const val GENRE_KEY = "GENRE_KEY"
         const val IMAGE_URL = "IMAGE_URL"
+        const val ID_KEY = "ID_KEY"
     }
 
     private lateinit var viewBookVB: ViewBookActivityBinding
+    private lateinit var sharedPrefs: SharedPrefsManager
+    private var currentUserDocumentId: String = ""
+    private var bookDocumentId: String = ""
+    private var googleBooksId: String = "" // Changed to String since volume.id is String
+    private var isLiked = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
         this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
         setContentView(viewBookVB.root)
 
+        // Initialize shared preferences
+        sharedPrefs = SharedPrefsManager(this)
+        currentUserDocumentId = sharedPrefs.getCurrentUserId() ?: ""
+
+        // Get book data from intent
+        googleBooksId = intent.getStringExtra(ID_KEY) ?: "" // Use the ID_KEY you're already passing
+        bookDocumentId = generateBookDocumentId()
 
         val titleString = intent.getStringExtra(TITLE_KEY).toString()
         val authorString = intent.getStringExtra(AUTHOR_KEY).toString()
@@ -103,15 +117,11 @@ class ViewBookActivity : AppCompatActivity() {
         this.viewBookVB.reviewRv.adapter = ReviewAdapter(dataReviews)
         this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
 
+        // Initialize like state
+        initializeLikeState()
 
-        var isLiked = false
         viewBookVB.likeBtn.setOnClickListener {
-            isLiked = !isLiked
-            if (isLiked) {
-                viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_on)
-            } else {
-                viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_off)
-            }
+            handleLikeClick()
         }
 
         viewBookVB.reviewBtn.setOnClickListener {
@@ -121,6 +131,81 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.addToListBtn.setOnClickListener {
             showAddToListDialog()
         }
+    }
+
+    private fun generateBookDocumentId(): String {
+        // Generate a consistent document ID based on Google Books ID
+        return "book_${googleBooksId}"
+    }
+
+    private fun initializeLikeState() {
+        if (currentUserDocumentId.isNotEmpty() && bookDocumentId.isNotEmpty()) {
+            // Check if user has already liked this book
+            BookUserService.isBookLikedByUser(currentUserDocumentId, bookDocumentId)
+                .addOnSuccessListener { liked ->
+                    isLiked = liked
+                    updateLikeButtonUI()
+                }
+                .addOnFailureListener {
+                    // Default to not liked if there's an error
+                    isLiked = false
+                    updateLikeButtonUI()
+                }
+        } else {
+            // Disable like button if user is not logged in or book ID is missing
+            viewBookVB.likeBtn.isEnabled = currentUserDocumentId.isNotEmpty()
+            updateLikeButtonUI()
+        }
+    }
+
+    private fun handleLikeClick() {
+        if (currentUserDocumentId.isEmpty()) {
+            Toast.makeText(this, "Please log in to like books", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Convert googleBooksId to Int (you might need to handle this conversion)
+        val googleBooksIdInt = try {
+            googleBooksId.toInt()
+        } catch (e: NumberFormatException) {
+            // If it's not a number, use a hash code or other method
+            googleBooksId.hashCode()
+        }
+
+        if (isLiked) {
+            // Remove like
+            BookUserService.removeFromIsLiked(currentUserDocumentId, bookDocumentId)
+                .addOnSuccessListener {
+                    isLiked = false
+                    updateLikeButtonUI()
+                    Toast.makeText(this, "Removed from favorites", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to remove from favorites", Toast.LENGTH_SHORT).show()
+                }
+        } else {
+            // Add like - this will create the book if it doesn't exist
+            BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksIdInt)
+                .addOnSuccessListener {
+                    isLiked = true
+                    updateLikeButtonUI()
+                    Toast.makeText(this, "Added to favorites!", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to add to favorites", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    private fun updateLikeButtonUI() {
+        if (isLiked) {
+            viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_on)
+        } else {
+            viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_off)
+        }
+
+        // Enable/disable button based on login status
+        viewBookVB.likeBtn.isEnabled = currentUserDocumentId.isNotEmpty()
     }
 
     fun showReviewDialog() {

@@ -90,12 +90,11 @@
             android:id="@+id/genreRv"
             android:layout_width="0dp"
             android:layout_height="60dp"
-            android:layout_marginTop="20dp"
             android:nestedScrollingEnabled="false"
             app:layout_constraintBottom_toTopOf="@id/line1"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/coverIv" />
+            app:layout_constraintTop_toBottomOf="@+id/avgRatingRb" />
 
         <View
             android:id="@+id/line1"
