@@ -14,6 +14,7 @@ import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.BookUserService
+import com.mobdeve.s17.group39.itismob_mco.database.ReviewService
 import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
@@ -21,7 +22,7 @@ import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.genre.GenreAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListAdapter
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
-import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewModel
+import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 import jp.wasabeef.glide.transformations.BlurTransformation
 import jp.wasabeef.glide.transformations.ColorFilterTransformation
@@ -43,8 +44,10 @@ class ViewBookActivity : AppCompatActivity() {
     private lateinit var sharedPrefs: SharedPrefsManager
     private var currentUserDocumentId: String = ""
     private var bookDocumentId: String = ""
-    private var googleBooksId: String = "" // Changed to String since volume.id is String
+    private var googleBooksId: String = ""
     private var isLiked = false
+    private lateinit var reviewAdapter: ReviewAdapter
+    private val reviewList = ArrayList<ReviewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,7 +60,7 @@ class ViewBookActivity : AppCompatActivity() {
         currentUserDocumentId = sharedPrefs.getCurrentUserId() ?: ""
 
         // Get book data from intent
-        googleBooksId = intent.getStringExtra(ID_KEY) ?: "" // Use the ID_KEY you're already passing
+        googleBooksId = intent.getStringExtra(ID_KEY) ?: ""
         bookDocumentId = generateBookDocumentId()
 
         val titleString = intent.getStringExtra(TITLE_KEY).toString()
@@ -112,10 +115,11 @@ class ViewBookActivity : AppCompatActivity() {
             false
         )
 
-        // Recycler view for reviews
-        val dataReviews = generateReviews()
-        this.viewBookVB.reviewRv.adapter = ReviewAdapter(dataReviews)
+        // Recycler for book reviews
+        reviewAdapter = ReviewAdapter(reviewList)
+        this.viewBookVB.reviewRv.adapter = reviewAdapter
         this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
+        loadReviews()
 
         // Initialize like state
         initializeLikeState()
@@ -249,6 +253,29 @@ class ViewBookActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun loadReviews() {
+        if (bookDocumentId.isNotEmpty()) {
+            ReviewService.getReviewsWithUserData(bookDocumentId)
+                .addOnSuccessListener { reviews ->
+                    reviewList.clear()
+                    reviewList.addAll(reviews)
+                    reviewAdapter.notifyDataSetChanged()
+
+                    // Show empty state if no reviews
+                    if (reviews.isEmpty()) {
+                        viewBookVB.reviewRv.visibility = android.view.View.GONE
+                        viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
+                    } else {
+                        viewBookVB.reviewRv.visibility = android.view.View.VISIBLE
+                        viewBookVB.noReviewsTv.visibility = android.view.View.GONE
+                    }
+                }
+        } else {
+            Toast.makeText(this, "Failed to load reviews", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
     fun showAddToListDialog() {
         val dialog = Dialog(this@ViewBookActivity)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -310,66 +337,4 @@ class ViewBookActivity : AppCompatActivity() {
 
         dialog.show()
     }
-
-    private fun generateReviews(): ArrayList<ReviewModel> {
-        val tempData = ArrayList<ReviewModel>()
-
-        tempData.add(
-            ReviewModel(
-                userPfpResId = R.drawable.user_pfp_1,
-                username = "Kasane Teto",
-                userRating = 4.5f,
-                reviewBody = "Absolutely loved this book! Couldn't put it down.",
-                isLikedByCurrentUser = true,
-                likesCount = 67
-            )
-        )
-
-        tempData.add(
-            ReviewModel(
-                userPfpResId = R.drawable.user_pfp_2,
-                username = "BookWorm42",
-                userRating = 3.0f,
-                reviewBody = "Good premise but slow pacing in the middle chapters.",
-                isLikedByCurrentUser = false,
-                likesCount = 23
-            )
-        )
-
-        tempData.add(
-            ReviewModel(
-                userPfpResId = R.drawable.user_pfp_3,
-                username = "LiteraryExplorer",
-                userRating = 5.0f,
-                reviewBody = "Masterpiece! The character development was incredible.",
-                isLikedByCurrentUser = true,
-                likesCount = 89
-            )
-        )
-
-        tempData.add(
-            ReviewModel(
-                userPfpResId = R.drawable.user_pfp_4,
-                username = "CriticalReader",
-                userRating = 2.5f,
-                reviewBody = "Interesting concept but poor execution.",
-                isLikedByCurrentUser = false,
-                likesCount = 12
-            )
-        )
-
-        tempData.add(
-            ReviewModel(
-                userPfpResId = R.drawable.user_pfp_5,
-                username = "PageTurner",
-                userRating = 4.0f,
-                reviewBody = "Great weekend read, highly recommend!",
-                isLikedByCurrentUser = true,
-                likesCount = 45
-            )
-        )
-
-        return tempData
-    }
-
 }

@@ -8,6 +8,13 @@ import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 
 object ReviewsDatabase : DatabaseHandler<ReviewModel>(FirestoreDatabase.reviewsCollection) {
 
+    // READ - Get all reviews for a specific book
+    fun getReviewsByBookId(bookId: String): Task<QuerySnapshot> {
+        return collectionRef
+            .whereEqualTo("book_id", bookId)
+            .get()
+    }
+
     // READ - Get all reviews by a specific user
     fun getReviewsByUserId(userId: String): Task<QuerySnapshot> {
         return collectionRef
