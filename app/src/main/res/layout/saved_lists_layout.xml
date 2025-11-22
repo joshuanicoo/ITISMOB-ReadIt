@@ -36,6 +36,21 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/savedListsHeaderTv" />
 
+    <TextView
+        android:id="@+id/emptyStateTv"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="You don't have any lists yet"
+        android:textColor="@color/gray"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/createNewListBtn" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/savedListsRv"
         android:layout_width="0dp"

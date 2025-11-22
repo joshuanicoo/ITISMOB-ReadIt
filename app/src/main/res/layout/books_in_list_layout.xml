@@ -31,7 +31,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/listTitleTv" />
 
-
     <com.google.android.material.progressindicator.CircularProgressIndicator
         android:id="@+id/loadingProgressBar"
         android:layout_width="80dp"
@@ -45,6 +44,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         android:visibility="visible" />
+
+    <!-- Add this empty state TextView -->
+    <TextView
+        android:id="@+id/emptyStateTv"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="No books in this list yet"
+        android:textColor="@color/gray"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/bookCountHeaderTv" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/booksInListRv"

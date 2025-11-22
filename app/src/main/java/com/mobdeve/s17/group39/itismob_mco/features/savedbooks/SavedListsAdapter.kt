@@ -6,7 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.mobdeve.s17.group39.itismob_mco.databinding.SavedListItemLayoutBinding
 
 class SavedListsAdapter(
-    private val data: List<SavedList>,
+    private var data: List<SavedList>,
     private val onItemClick: (SavedList) -> Unit
 ) : RecyclerView.Adapter<SavedListsViewHolder>() {
 
@@ -28,5 +28,10 @@ class SavedListsAdapter(
 
     override fun getItemCount(): Int {
         return data.size
+    }
+
+    fun updateData(newData: List<SavedList>) {
+        data = newData
+        notifyDataSetChanged()
     }
 }

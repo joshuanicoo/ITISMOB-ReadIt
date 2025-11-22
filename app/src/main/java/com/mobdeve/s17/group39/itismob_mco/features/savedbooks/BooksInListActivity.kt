@@ -6,52 +6,113 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
+import com.google.firebase.firestore.ListenerRegistration
+import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.BooksInListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.features.homepage.HomeAdapter
-import com.mobdeve.s17.group39.itismob_mco.features.homepage.*
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.ViewBookActivity
+import com.mobdeve.s17.group39.itismob_mco.models.ListModel
 import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksApiInterface
-import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksResponse
-import com.mobdeve.s17.group39.itismob_mco.utils.ImageLinks
 import com.mobdeve.s17.group39.itismob_mco.utils.ImageUtils
 import com.mobdeve.s17.group39.itismob_mco.utils.RetrofitInstance
 import com.mobdeve.s17.group39.itismob_mco.utils.Volume
-import com.mobdeve.s17.group39.itismob_mco.utils.VolumeInfo
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 class BooksInListActivity : AppCompatActivity() {
 
     companion object {
         const val LIST_NAME_KEY = "LIST_NAME_KEY"
+        const val LIST_ID_KEY = "LIST_ID_KEY"
         const val BOOK_COUNT_KEY = "BOOK_COUNT_KEY"
     }
 
     private lateinit var binding: BooksInListLayoutBinding
     private lateinit var adapter: HomeAdapter
     private lateinit var apiInterface: GoogleBooksApiInterface
+    private var listListener: ListenerRegistration? = null
+    private var currentListId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = BooksInListLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        currentListId = intent.getStringExtra(LIST_ID_KEY) ?: ""
+        if (currentListId.isEmpty()) {
+            Toast.makeText(this, "Invalid list", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
         setupUI()
         setupRecyclerView()
         getApiInterface()
         showLoading()
-        fetchBooksForList()
+        setupListListener()
+    }
+
+    private fun setupListListener() {
+        // Get the DocumentReference first, then add snapshot listener
+        val documentRef = ListsDatabase.getDocumentReference(currentListId)
+        listListener = documentRef.addSnapshotListener { documentSnapshot, error ->
+            if (error != null) {
+                Toast.makeText(this, "Error loading list: ${error.message}", Toast.LENGTH_SHORT).show()
+                return@addSnapshotListener
+            }
+
+            if (documentSnapshot != null && documentSnapshot.exists()) {
+                val list = documentSnapshot.toObject(ListModel::class.java)
+                list?.let { updateListUI(it) }
+            } else {
+                // List doesn't exist or was deleted
+                Toast.makeText(this, "List not found", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun updateListUI(list: ListModel) {
+        binding.listTitleTv.text = list.listName
+        binding.bookCountHeaderTv.text = "${list.books.size} ${if (list.books.size == 1) "book" else "books"}"
+
+        if (list.books.isNotEmpty()) {
+            // For now, we'll show sample books since we don't have actual book data
+            // In a real implementation, you would fetch book details from your BooksDatabase
+            showSampleBooks()
+        } else {
+            showEmptyState()
+        }
+    }
+
+    private fun showSampleBooks() {
+        // Show some sample books for demonstration
+        // In a real app, you would fetch actual book data from your database
+        hideLoading()
+        binding.booksInListRv.visibility = View.VISIBLE
+        binding.emptyStateTv.visibility = View.GONE
+
+        // For now, we'll just show an empty adapter since we don't have real book data
+        // You would need to implement fetching book details from BooksDatabase
+        adapter.updateData(emptyList())
+        binding.emptyStateTv.visibility = View.VISIBLE
+        binding.booksInListRv.visibility = View.GONE
+        binding.emptyStateTv.text = "Book data integration needed"
     }
 
     private fun showLoading() {
         binding.loadingProgressBar.visibility = View.VISIBLE
         binding.booksInListRv.visibility = View.GONE
+        binding.emptyStateTv.visibility = View.GONE
     }
 
     private fun hideLoading() {
         binding.loadingProgressBar.visibility = View.GONE
-        binding.booksInListRv.visibility = View.VISIBLE
+    }
+
+    private fun showEmptyState() {
+        hideLoading()
+        binding.booksInListRv.visibility = View.GONE
+        binding.emptyStateTv.visibility = View.VISIBLE
+        binding.emptyStateTv.text = "No books in this list yet"
     }
 
     private fun setupUI() {
@@ -63,10 +124,7 @@ class BooksInListActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter =
-            _root_ide_package_.com.mobdeve.s17.group39.itismob_mco.features.homepage.HomeAdapter(
-                emptyList()
-            )
+        adapter = HomeAdapter(emptyList())
         binding.booksInListRv.adapter = adapter
         binding.booksInListRv.layoutManager = GridLayoutManager(this, 2)
 
@@ -76,147 +134,7 @@ class BooksInListActivity : AppCompatActivity() {
     }
 
     private fun getApiInterface() {
-        apiInterface = RetrofitInstance.getInstance().create(
-            GoogleBooksApiInterface::class.java)
-    }
-
-    private fun fetchBooksForList() {
-        val listName = intent.getStringExtra(LIST_NAME_KEY) ?: "List"
-
-        val searchQuery = when (listName) {
-            "Currently Reading" -> "roshidere"
-            "Want to Read" -> "angel next door"
-            "Read" -> "The Detective is already dead"
-            "Favorites" -> "that time i got reincarnated"
-            "To Buy" -> "new releases"
-            "Summer Reading" -> "beach reads"
-            "Classics" -> "classroom of the elite"
-            "Non-Fiction" -> "non-fiction bestsellers"
-            else -> "popular books"
-        }
-
-        val call = apiInterface.searchBooks(
-            query = searchQuery,
-            maxResults = 6,
-            printType = "books"
-        )
-
-        call.enqueue(object : Callback<GoogleBooksResponse> {
-            override fun onResponse(
-                call: Call<GoogleBooksResponse>,
-                response: Response<GoogleBooksResponse>
-            ) {
-                if (response.isSuccessful && response.body() != null) {
-                    val booksResponse = response.body()!!
-                    if (booksResponse.items.isNotEmpty()) {
-                        adapter.updateData(booksResponse.items)
-                        binding.bookCountHeaderTv.text = "${booksResponse.items.size} books"
-                    } else {
-                        showFallbackBooks()
-                    }
-                } else {
-                    showFallbackBooks()
-                }
-                hideLoading()
-            }
-
-            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                t.printStackTrace()
-                Toast.makeText(this@BooksInListActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
-                showFallbackBooks()
-                hideLoading()
-            }
-        })
-    }
-
-    private fun showFallbackBooks() {
-        val fallbackBooks = listOf(
-            Volume(
-                id = "1",
-                kind = "books#volume",
-                etag = "fallback1",
-                selfLink = "",
-                volumeInfo = VolumeInfo(
-                    title = "Sample Book 1",
-                    authors = listOf("Author One"),
-                    publisher = "Sample Publisher",
-                    publishedDate = "2023",
-                    description = "This is a sample book description for demonstration purposes.",
-                    categories = listOf("Fiction"),
-                    averageRating = 4.0,
-                    ratingsCount = 100,
-                    imageLinks = ImageLinks(
-                        smallThumbnail = "https://via.placeholder.com/128x196/4CAF50/FFFFFF?text=Book+1",
-                        thumbnail = "https://via.placeholder.com/128x196/4CAF50/FFFFFF?text=Book+1",
-                        small = null,
-                        medium = null,
-                        large = null,
-                        extraLarge = null
-                    ),
-                    pageCount = 300,
-                    language = "en",
-                    industryIdentifiers = null,
-                    readingModes = null,
-                    printedPageCount = null,
-                    printType = null,
-                    maturityRating = null,
-                    allowAnonLogging = null,
-                    contentVersion = null,
-                    panelizationSummary = null,
-                    previewLink = null,
-                    infoLink = null,
-                    canonicalVolumeLink = null,
-                    subtitle = null
-                ),
-                saleInfo = null,
-                accessInfo = null,
-                searchInfo = null
-            ),
-            Volume(
-                id = "2",
-                kind = "books#volume",
-                etag = "fallback2",
-                selfLink = "",
-                volumeInfo = VolumeInfo(
-                    title = "Sample Book 2",
-                    authors = listOf("Author Two"),
-                    publisher = "Sample Publisher",
-                    publishedDate = "2023",
-                    description = "Another sample book for the collection.",
-                    categories = listOf("Non-Fiction"),
-                    averageRating = 4.5,
-                    ratingsCount = 150,
-                    imageLinks = ImageLinks(
-                        smallThumbnail = "https://via.placeholder.com/128x196/2196F3/FFFFFF?text=Book+2",
-                        thumbnail = "https://via.placeholder.com/128x196/2196F3/FFFFFF?text=Book+2",
-                        small = null,
-                        medium = null,
-                        large = null,
-                        extraLarge = null
-                    ),
-                    pageCount = 250,
-                    language = "en",
-                    industryIdentifiers = null,
-                    readingModes = null,
-                    printedPageCount = null,
-                    printType = null,
-                    maturityRating = null,
-                    allowAnonLogging = null,
-                    contentVersion = null,
-                    panelizationSummary = null,
-                    previewLink = null,
-                    infoLink = null,
-                    canonicalVolumeLink = null,
-                    subtitle = null
-                ),
-                saleInfo = null,
-                accessInfo = null,
-                searchInfo = null
-            )
-        )
-        adapter.updateData(fallbackBooks)
-        binding.bookCountHeaderTv.text = "${fallbackBooks.size} books"
-        hideLoading()
+        apiInterface = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
     }
 
     private fun openBookDetails(volume: Volume, position: Int) {
@@ -236,5 +154,10 @@ class BooksInListActivity : AppCompatActivity() {
         intent.putExtra(ViewBookActivity.IMAGE_URL, imageUrl)
 
         startActivity(intent)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        listListener?.remove()
     }
 }
