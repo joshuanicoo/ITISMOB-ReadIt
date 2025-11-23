@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "939320437291-j9ejb31u0htacln2nvra5190dkg1nfh3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mobdeve.s17.group39.itismob_mco",
+            "certificate_hash": "0b600146b93d173b599734824e7d557ea27838c5"
+          }
+        },
+        {
           "client_id": "939320437291-jjp39gjtlvjk5otkfv5nsfdsg6qd7if3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
