@@ -14,14 +14,14 @@ import com.bumptech.glide.request.RequestOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
+import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
 import com.mobdeve.s17.group39.itismob_mco.services.BookUserService
 import com.mobdeve.s17.group39.itismob_mco.database.ReviewsDatabase
-import com.mobdeve.s17.group39.itismob_mco.databinding.AddToListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewDialog
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.genre.GenreAdapter
-import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListAdapter
+import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListDialog
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
@@ -509,47 +509,18 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.numberOfRatingsTv.text = ratedReviews.size.toString()
     }
 
-    fun showAddToListDialog() {
-        val dialog = Dialog(this@ViewBookActivity)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setCancelable(true)
-        val binding = AddToListLayoutBinding.inflate(layoutInflater)
-        dialog.setContentView(binding.root)
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-
-        val dataLists = arrayListOf(
-            "Currently Reading",
-            "Want to Read",
-            "Read",
-            "Favorites",
-            "To Buy",
-            "Summer Reading",
-            "Classics",
-            "Non-Fiction"
-        )
-
-        binding.addToListRv.adapter = AddToListAdapter(dataLists)
-        binding.addToListRv.layoutManager = LinearLayoutManager(this)
-
-        binding.newListBtn.setOnClickListener {
-            dialog.dismiss()
-            showNewListDialog()
-        }
-
-        binding.addToListDialogBtn.setOnClickListener {
-            Toast.makeText(this@ViewBookActivity, "Successfully added to list", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
-
-        binding.cancelAddToListBtn.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
+    private fun showAddToListDialog() {
+        AddToListDialog(
+            context = this,
+            bookId = bookDocumentId, // Use your book document ID
+            onNewListRequested = {
+                showNewListDialog()
+            }
+        ).show()
     }
 
-    fun showNewListDialog() {
-        val dialog = Dialog(this@ViewBookActivity)
+    private fun showNewListDialog() {
+        val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setCancelable(true)
         val binding = NewListLayoutBinding.inflate(layoutInflater)
@@ -559,8 +530,12 @@ class ViewBookActivity : AppCompatActivity() {
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
 
         binding.saveNewListBtn.setOnClickListener {
-            Toast.makeText(this@ViewBookActivity, "Successfully created list", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
+            val listName = binding.newListNameEt.text.toString().trim()
+            if (listName.isNotEmpty()) {
+                createNewList(listName, dialog)
+            } else {
+                Toast.makeText(this, "Please enter a list name", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.cancelNewListBtn.setOnClickListener {
@@ -568,6 +543,25 @@ class ViewBookActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun createNewList(listName: String, dialog: Dialog) {
+        val currentUserId = auth.currentUser?.uid ?: ""
+        if (currentUserId.isEmpty()) {
+            Toast.makeText(this, "Please log in to create lists", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        ListsDatabase.createList(listName, currentUserId)
+            .addOnSuccessListener {
+                Toast.makeText(this, "List '$listName' created successfully!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                // Optionally show the add to list dialog again to add the book
+                showAddToListDialog()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to create list: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun refreshReviewsData() {

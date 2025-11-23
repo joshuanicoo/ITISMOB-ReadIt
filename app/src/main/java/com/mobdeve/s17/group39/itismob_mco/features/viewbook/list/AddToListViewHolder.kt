@@ -2,10 +2,33 @@ package com.mobdeve.s17.group39.itismob_mco.features.viewbook.list
 
 import androidx.recyclerview.widget.RecyclerView
 import com.mobdeve.s17.group39.itismob_mco.databinding.ListsItemLayoutBinding
+import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
+import com.mobdeve.s17.group39.itismob_mco.models.ListModel
 
-class AddToListViewHolder (private val viewBinding: ListsItemLayoutBinding): RecyclerView.ViewHolder(viewBinding.root) {
+class AddToListViewHolder(private val itemViewBinding: ListsItemLayoutBinding) :
+    RecyclerView.ViewHolder(itemViewBinding.root) {
 
-    fun bindData(data: String) {
-        this.viewBinding.listNameTv.text = data
+    fun bindData(list: ListModel, bookId: String, onListCheckedChange: (String, String, Boolean) -> Unit) {
+        // Set list name
+        itemViewBinding.listNameTv.text = list.listName
+
+        // Check if book is already in this list and set checkbox state
+        ListsDatabase.isBookInList(list.documentId, bookId)
+            .addOnSuccessListener { isInList ->
+                itemViewBinding.listCheckbox.isChecked = isInList
+            }
+            .addOnFailureListener {
+                itemViewBinding.listCheckbox.isChecked = false
+            }
+
+        // Set checkbox change listener
+        itemViewBinding.listCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            onListCheckedChange(list.documentId, list.listName, isChecked)
+        }
+
+        // Optional: Make the entire item clickable to toggle checkbox
+        itemViewBinding.root.setOnClickListener {
+            itemViewBinding.listCheckbox.isChecked = !itemViewBinding.listCheckbox.isChecked
+        }
     }
 }

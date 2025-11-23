@@ -7,13 +7,6 @@ import com.mobdeve.s17.group39.itismob_mco.models.ListModel
 
 object ListsDatabase : DatabaseHandler<ListModel>(FirestoreDatabase.listsCollection) {
 
-    // READ - Get all lists by user
-    fun getListsByUserId(userId: String): Task<QuerySnapshot> {
-        return collectionRef
-            .whereEqualTo("user_id", userId)
-            .get()
-    }
-
     // CREATE - Create a new list for user
     fun createList(listName: String, userId: String): Task<Void> {
         val listModel = ListModel(
@@ -23,32 +16,35 @@ object ListsDatabase : DatabaseHandler<ListModel>(FirestoreDatabase.listsCollect
         )
 
         // Generate a unique ID for the list
-        val listId = collectionRef.document().id
-        return createWithId(listId, listModel)
+        val documentId = collectionRef.document().id
+        return createWithId(documentId, listModel)
     }
 
     // UPDATE - Update list name
-    fun updateListName(listId: String, newListName: String): Task<Void> {
-        return updateField(listId, "list_name", newListName)
+    fun updateListName(documentId: String, newListName: String): Task<Void> {
+        val updates = mapOf(
+            "listName" to newListName
+        )
+        return update(documentId, updates)
     }
 
     // Add book to list (array operation)
-    fun addBookToList(listId: String, bookId: String): Task<Void> {
+    fun addBookToList(documentId: String, bookId: String): Task<Void> {
         return collectionRef
-            .document(listId)
+            .document(documentId)
             .update("books", FieldValue.arrayUnion(bookId))
     }
 
     // Remove book from list
-    fun removeBookFromList(listId: String, bookId: String): Task<Void> {
+    fun removeBookFromList(documentId: String, bookId: String): Task<Void> {
         return collectionRef
-            .document(listId)
+            .document(documentId)
             .update("books", FieldValue.arrayRemove(bookId))
     }
 
     // Check if book exists in list
-    fun isBookInList(listId: String, bookId: String): Task<Boolean> {
-        return getById(listId)
+    fun isBookInList(documentId: String, bookId: String): Task<Boolean> {
+        return getById(documentId)
             .continueWith { task ->
                 if (task.isSuccessful) {
                     val list = task.result?.toObject(ListModel::class.java)
@@ -62,8 +58,33 @@ object ListsDatabase : DatabaseHandler<ListModel>(FirestoreDatabase.listsCollect
     // Get lists containing a specific book
     fun getListsContainingBook(userId: String, bookId: String): Task<QuerySnapshot> {
         return collectionRef
-            .whereEqualTo("user_id", userId)
+            .whereEqualTo("userId", userId)
             .whereArrayContains("books", bookId)
             .get()
+    }
+
+    // Get all lists for a specific user
+    fun getUserLists(userId: String): Task<QuerySnapshot> {
+        return collectionRef
+            .whereEqualTo("userId", userId)
+            .get()
+    }
+
+    // Delete a list
+    fun deleteList(documentId: String): Task<Void> {
+        return delete(documentId)
+    }
+
+    // Get list by ID with full details
+    fun getListWithDetails(documentId: String): Task<ListModel?> {
+        return getById(documentId)
+            .continueWith { task ->
+                if (task.isSuccessful && task.result.exists()) {
+                    val document = task.result
+                    ListModel.fromMap(document.id, document.data ?: emptyMap())
+                } else {
+                    null
+                }
+            }
     }
 }

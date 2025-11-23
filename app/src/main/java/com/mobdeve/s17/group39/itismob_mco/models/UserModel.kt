@@ -6,36 +6,46 @@ data class UserModel(
     val documentId: String = "",
     val username: String = "",
     val email: String = "",
-    val bio: String? = null,
     val profilePicture: String? = null,
+    val bio: String? = null,
     val favorites: List<String> = emptyList(),
-    val dateCreated: Timestamp = Timestamp.now(),
-    val dateUpdated: Timestamp = Timestamp.now()
+    val dateCreated: Timestamp? = null,
+    val dateUpdated: Timestamp? = null
 ) {
-    // Helper method to convert to Map for Firestore
-    fun toMap(): Map<String, Any?> {
+    fun toMap(): Map<String, Any> {
         return mapOf(
             "username" to username,
             "email" to email,
-            "bio" to bio,
-            "profile_picture" to profilePicture,
+            "profilePicture" to (profilePicture ?: ""),
+            "bio" to (bio ?: ""),
             "favorites" to favorites,
-            "date_created" to dateCreated,
-            "date_updated" to dateUpdated
+            "dateCreated" to (dateCreated ?: Timestamp.now()),
+            "dateUpdated" to (dateUpdated ?: Timestamp.now())
         )
     }
 
     companion object {
-        // Helper method to create User from Firestore document
-        fun fromMap(id: String, map: Map<String, Any>): UserModel {
+        fun fromMap(documentId: String, map: Map<String, Any>): UserModel {
+            val favoritesList = when (val favs = map["favorites"]) {
+                is List<*> -> favs.mapNotNull {
+                    when (it) {
+                        is Long -> it.toString()    // Convert Long to String
+                        is String -> it             // Keep as String
+                        else -> null
+                    }
+                }
+                else -> emptyList()
+            }
+
             return UserModel(
+                documentId = documentId,
                 username = map["username"] as? String ?: "",
                 email = map["email"] as? String ?: "",
+                profilePicture = map["profilePicture"] as? String,
                 bio = map["bio"] as? String,
-                profilePicture = map["profile_picture"] as? String,
-                favorites = map["favorites"] as? List<String> ?: emptyList(),
-                dateCreated = map["date_created"] as? Timestamp ?: Timestamp.now(),
-                dateUpdated = map["date_updated"] as? Timestamp ?: Timestamp.now()
+                favorites = favoritesList,
+                dateCreated = map["dateCreated"] as? Timestamp,
+                dateUpdated = map["dateUpdated"] as? Timestamp
             )
         }
     }

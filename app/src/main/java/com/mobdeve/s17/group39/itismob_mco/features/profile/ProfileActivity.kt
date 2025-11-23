@@ -42,10 +42,10 @@ class ProfileActivity : AppCompatActivity() {
             UsersDatabase.getById(currentUser.uid)
                 .addOnSuccessListener { documentSnapshot ->
                     if (documentSnapshot.exists()) {
-                        val userModel = documentSnapshot.toObject(UserModel::class.java)
+                        val userModel = UserModel.fromMap(documentSnapshot.id, documentSnapshot.data ?: emptyMap())
 
                         // Set current user pfp
-                        val photoUrl = userModel?.profilePicture ?: currentUser.photoUrl?.toString()
+                        val photoUrl = userModel.profilePicture ?: currentUser.photoUrl?.toString()
                         if (!photoUrl.isNullOrEmpty()) {
                             Glide.with(binding.root.context)
                                 .load(photoUrl)
@@ -58,11 +58,11 @@ class ProfileActivity : AppCompatActivity() {
                         }
 
                         // Set current username
-                        val username = userModel?.username ?: currentUser.displayName ?: "User"
+                        val username = userModel.username ?: currentUser.displayName ?: "User"
                         binding.profileNameEt.text = SpannableStringBuilder(username)
 
                         // Set current bio if available
-                        val bio = userModel?.bio ?: ""
+                        val bio = userModel.bio ?: ""
                         binding.profileBioEt.text = SpannableStringBuilder(bio)
                     }
                 }

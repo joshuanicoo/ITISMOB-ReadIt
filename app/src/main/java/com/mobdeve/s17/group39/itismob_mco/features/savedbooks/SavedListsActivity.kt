@@ -8,34 +8,28 @@ import android.view.Window
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
 import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.SavedListsLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.models.ListModel
-import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 
 class SavedListsActivity : AppCompatActivity() {
 
     private lateinit var binding: SavedListsLayoutBinding
     private lateinit var adapter: SavedListsAdapter
     private var listsListener: ListenerRegistration? = null
-    private val sharedPrefs = SharedPrefsManager(this)
+    private val auth = FirebaseAuth.getInstance()
 
-    // Get current user ID safely
+    // Get current user ID from Firebase Auth
     private val currentUserId: String
-        get() = sharedPrefs.getCurrentUserId() ?: ""
+        get() = auth.currentUser?.uid ?: ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = SavedListsLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        if (currentUserId.isEmpty()) {
-            Toast.makeText(this, "Please log in to view your lists", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
 
         setupRecyclerView()
         setupClickListeners()
@@ -79,7 +73,7 @@ class SavedListsActivity : AppCompatActivity() {
 
     private fun updateUI(lists: List<ListModel>) {
         val savedLists = lists.map { list ->
-            SavedList(list.listName, list.books.size, list.id)
+            SavedList(list.listName, list.books.size, list.documentId)
         }
         adapter.updateData(savedLists)
 
@@ -98,7 +92,6 @@ class SavedListsActivity : AppCompatActivity() {
                 binding.emptyStateTv.visibility = android.view.View.GONE
                 binding.savedListsRv.visibility = android.view.View.VISIBLE
             } catch (e: Exception) {
-                // emptyStateTv doesn't exist, just show the RecyclerView
                 binding.savedListsRv.visibility = android.view.View.VISIBLE
             }
         }
