@@ -3,7 +3,7 @@ package com.mobdeve.s17.group39.itismob_mco.models
 import com.google.firebase.Timestamp
 
 data class UserModel(
-    val uid: String = "",
+    val documentId: String = "",
     val username: String = "",
     val email: String = "",
     val bio: String? = null,
@@ -15,7 +15,6 @@ data class UserModel(
     // Helper method to convert to Map for Firestore
     fun toMap(): Map<String, Any?> {
         return mapOf(
-            "uid" to uid,
             "username" to username,
             "email" to email,
             "bio" to bio,
@@ -30,14 +29,13 @@ data class UserModel(
         // Helper method to create User from Firestore document
         fun fromMap(id: String, map: Map<String, Any>): UserModel {
             return UserModel(
-                uid = map["uid"] as? String ?: id, // Use uid from map or fallback to document id
                 username = map["username"] as? String ?: "",
                 email = map["email"] as? String ?: "",
                 bio = map["bio"] as? String,
                 profilePicture = map["profile_picture"] as? String,
                 favorites = map["favorites"] as? List<String> ?: emptyList(),
-                dateCreated = map["date_created"] as? Timestamp ?: Timestamp.now(), // Fixed field name
-                dateUpdated = map["date_updated"] as? Timestamp ?: Timestamp.now()  // Fixed field name
+                dateCreated = map["date_created"] as? Timestamp ?: Timestamp.now(),
+                dateUpdated = map["date_updated"] as? Timestamp ?: Timestamp.now()
             )
         }
     }

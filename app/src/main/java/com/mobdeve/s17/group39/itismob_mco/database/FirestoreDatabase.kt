@@ -15,4 +15,5 @@ object FirestoreDatabase {
     val usersCollection = db.collection(USERS_COLLECTION)
     val reviewsCollection = db.collection(REVIEWS_COLLECTION)
     val listsCollection = db.collection(LISTS_COLLECTION)
+    val booksCollection = db.collection(BOOKS_COLLECTION)
 }

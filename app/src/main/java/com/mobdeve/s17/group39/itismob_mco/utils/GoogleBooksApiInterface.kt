@@ -1,5 +1,6 @@
 package com.mobdeve.s17.group39.itismob_mco.utils
 
+import com.google.gson.annotations.SerializedName
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -23,3 +24,19 @@ interface GoogleBooksApiInterface {
     ): Call<GoogleBooksResponse>
 
 }
+
+interface QuoteApiInterface {
+    @GET("quotes/random")
+    fun getRandomQuote(): Call<List<QuoteResponse>>
+}
+
+data class QuoteResponse(
+    @SerializedName("_id") val id: String,
+    @SerializedName("content") val content: String,
+    @SerializedName("author") val author: String,
+    @SerializedName("tags") val tags: List<String>,
+    @SerializedName("authorSlug") val authorSlug: String,
+    @SerializedName("length") val length: Int,
+    @SerializedName("dateAdded") val dateAdded: String,
+    @SerializedName("dateModified") val dateModified: String
+)

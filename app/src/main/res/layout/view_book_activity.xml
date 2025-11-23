@@ -90,12 +90,11 @@
             android:id="@+id/genreRv"
             android:layout_width="0dp"
             android:layout_height="60dp"
-            android:layout_marginTop="20dp"
             android:nestedScrollingEnabled="false"
             app:layout_constraintBottom_toTopOf="@id/line1"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/coverIv" />
+            app:layout_constraintTop_toBottomOf="@+id/avgRatingRb" />
 
         <View
             android:id="@+id/line1"
@@ -270,6 +269,19 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/line3" />
+
+        <!-- Add the noReviewsTv here -->
+        <TextView
+            android:id="@+id/noReviewsTv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No reviews yet. Be the first to review!"
+            android:textAlignment="center"
+            android:padding="16dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/staticReviewsHeader"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/reviewRv"

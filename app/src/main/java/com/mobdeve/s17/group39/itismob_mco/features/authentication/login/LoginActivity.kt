@@ -156,34 +156,34 @@ class LoginActivity : AppCompatActivity() {
             }
     }
 
-    private fun checkUserExistsAndProceed(userId: String, account: GoogleSignInAccount) {
-        UsersDatabase.getById(userId).addOnCompleteListener { userTask ->
+    private fun checkUserExistsAndProceed(documentId: String, account: GoogleSignInAccount) {
+        UsersDatabase.getById(documentId).addOnCompleteListener { userTask ->
             if (userTask.isSuccessful) {
                 val document = userTask.result
                 if (document != null && document.exists()) {
-                    handleExistingUser(userId, account)
+                    handleExistingUser(documentId, account)
                 } else {
-                    handleNewUser(userId, account)
+                    handleNewUser(documentId, account)
                 }
             } else {
-                handleNewUser(userId, account)
+                handleNewUser(documentId, account)
             }
         }
     }
 
-    private fun handleExistingUser(userId: String, account: GoogleSignInAccount) {
-        UsersDatabase.getDocumentReference(userId).update("date_updated", Timestamp.now())
+    private fun handleExistingUser(documentId: String, account: GoogleSignInAccount) {
+        UsersDatabase.getDocumentReference(documentId).update("date_updated", Timestamp.now())
             .addOnSuccessListener {
-                completeAuthentication(userId, account, "Welcome back, ${account.displayName}!")
+                completeAuthentication(documentId, account, "Welcome back, ${account.displayName}!")
             }
             .addOnFailureListener {
-                completeAuthentication(userId, account, "Welcome back, ${account.displayName}!")
+                completeAuthentication(documentId, account, "Welcome back, ${account.displayName}!")
             }
     }
 
-    private fun handleNewUser(userId: String, account: GoogleSignInAccount) {
+    private fun handleNewUser(documentId: String, account: GoogleSignInAccount) {
         val user = UserModel(
-            uid = userId,
+            documentId = documentId,
             username = account.displayName ?: "User",
             email = account.email ?: "",
             profilePicture = account.photoUrl?.toString(),
@@ -193,12 +193,12 @@ class LoginActivity : AppCompatActivity() {
             dateUpdated = Timestamp.now()
         )
 
-        UsersDatabase.createWithId(userId, user)
+        UsersDatabase.createWithId(documentId, user)
             .addOnSuccessListener {
-                completeAuthentication(userId, account, "Welcome to ${R.string.app_name}, ${account.displayName}!")
+                completeAuthentication(documentId, account, "Welcome to ${R.string.app_name}, ${account.displayName}!")
             }
             .addOnFailureListener { e ->
-                completeAuthentication(userId, account, "Welcome, ${account.displayName}!")
+                completeAuthentication(documentId, account, "Welcome, ${account.displayName}!")
             }
     }
 
@@ -206,7 +206,14 @@ class LoginActivity : AppCompatActivity() {
         try {
             val token = JwtUtils.createToken(userId, account.email ?: "", account.displayName ?: "User")
             sharedPrefs.saveAuthToken(token)
-            sharedPrefs.saveUserInfo(userId, account.email ?: "", account.displayName ?: "User")
+
+            // Save user info
+            sharedPrefs.saveUserInfo(
+                userId = userId,
+                email = account.email ?: "",
+                name = account.displayName ?: "User",
+                profilePicture = account.photoUrl?.toString() // Save the profile picture URL
+            )
 
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             navigateToHome()
