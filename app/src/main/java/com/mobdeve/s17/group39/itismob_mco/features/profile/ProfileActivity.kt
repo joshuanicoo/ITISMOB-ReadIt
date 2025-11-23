@@ -11,16 +11,16 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.mobdeve.s17.group39.itismob_mco.R
+import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.ProfileActivityLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.features.authentication.login.LoginActivity
-import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
+import com.mobdeve.s17.group39.itismob_mco.models.UserModel
 
 class ProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ProfileActivityLayoutBinding
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var auth: FirebaseAuth
-    private lateinit var sharedPrefs: SharedPrefsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,7 +28,6 @@ class ProfileActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         auth = FirebaseAuth.getInstance()
-        sharedPrefs = SharedPrefsManager(this)
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
@@ -37,25 +36,40 @@ class ProfileActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         // Set up current user data
-        val user = auth.currentUser!!
-        // Set current user pfp
-        if (user.photoUrl != null) {
-            Glide.with(binding.root.context)
-                .load(user.photoUrl)
-                .placeholder(R.drawable.user_pfp_placeholder)
-                .error(R.drawable.user_pfp_placeholder)
-                .circleCrop()
-                .into(binding.profilePicIv)
-        } else {
-            binding.profilePicIv.setImageResource(R.drawable.user_pfp_placeholder)
-        }
-        // Set current username
-        binding.profileNameEt.text = SpannableStringBuilder(user.displayName)
-        // Set current bio if available
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            // Get user data from Firestore
+            UsersDatabase.getById(currentUser.uid)
+                .addOnSuccessListener { documentSnapshot ->
+                    if (documentSnapshot.exists()) {
+                        val userModel = documentSnapshot.toObject(UserModel::class.java)
 
+                        // Set current user pfp
+                        val photoUrl = userModel?.profilePicture ?: currentUser.photoUrl?.toString()
+                        if (!photoUrl.isNullOrEmpty()) {
+                            Glide.with(binding.root.context)
+                                .load(photoUrl)
+                                .placeholder(R.drawable.user_pfp_placeholder)
+                                .error(R.drawable.user_pfp_placeholder)
+                                .circleCrop()
+                                .into(binding.profilePicIv)
+                        } else {
+                            binding.profilePicIv.setImageResource(R.drawable.user_pfp_placeholder)
+                        }
+
+                        // Set current username
+                        val username = userModel?.username ?: currentUser.displayName ?: "User"
+                        binding.profileNameEt.text = SpannableStringBuilder(username)
+
+                        // Set current bio if available
+                        val bio = userModel?.bio ?: ""
+                        binding.profileBioEt.text = SpannableStringBuilder(bio)
+                    }
+                }
+        }
 
         binding.updateProfileBtn.setOnClickListener {
-            Toast.makeText(this, "Updated successfully", Toast.LENGTH_SHORT).show()
+            updateProfile()
         }
 
         binding.logoutBtn.setOnClickListener {
@@ -63,10 +77,34 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    private fun logout() {
-        // Clear local data first
-        sharedPrefs.clearUserData()
+    private fun updateProfile() {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val newUsername = binding.profileNameEt.text.toString().trim()
+            val newBio = binding.profileBioEt.text.toString().trim()
 
+            if (newUsername.isEmpty()) {
+                Toast.makeText(this, "Username cannot be empty", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val updates = hashMapOf<String, Any>(
+                "username" to newUsername,
+                "bio" to newBio,
+                "date_updated" to com.google.firebase.Timestamp.now()
+            )
+
+            UsersDatabase.update(currentUser.uid, updates)
+                .addOnSuccessListener {
+                    Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    private fun logout() {
         // Sign out from Firebase
         auth.signOut()
 

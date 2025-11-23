@@ -7,11 +7,11 @@ import android.view.Window
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import android.graphics.Color
-
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
+import com.google.firebase.auth.FirebaseAuth
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
 import com.mobdeve.s17.group39.itismob_mco.services.BookUserService
@@ -25,7 +25,6 @@ import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListAdapt
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
-import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 import jp.wasabeef.glide.transformations.BlurTransformation
 import jp.wasabeef.glide.transformations.ColorFilterTransformation
 
@@ -43,7 +42,7 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private lateinit var viewBookVB: ViewBookActivityBinding
-    private lateinit var sharedPrefs: SharedPrefsManager
+    private lateinit var auth: FirebaseAuth
     private var currentUserDocumentId: String = ""
     private var bookDocumentId: String = ""
     private var googleBooksId: String = ""
@@ -57,8 +56,8 @@ class ViewBookActivity : AppCompatActivity() {
         this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
         setContentView(viewBookVB.root)
 
-        sharedPrefs = SharedPrefsManager(this)
-        currentUserDocumentId = sharedPrefs.getCurrentUserId() ?: ""
+        auth = FirebaseAuth.getInstance()
+        currentUserDocumentId = auth.currentUser?.uid ?: ""
 
         googleBooksId = intent.getStringExtra(ID_KEY) ?: ""
         bookDocumentId = generateBookDocumentId()
@@ -219,7 +218,8 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun showReviewDialog() {
-        val currentUsername = sharedPrefs.getCurrentUsername()
+        val currentUser = auth.currentUser
+        val currentUsername = currentUser?.displayName ?: "Anonymous"
         val existingUserRating = findUserRating(reviewList)
 
         ReviewDialog(
@@ -334,8 +334,9 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun createRatingOnlyReview(rating: Float) {
-        val currentUsername = sharedPrefs.getCurrentUsername() ?: "Anonymous"
-        val userProfilePicture = sharedPrefs.getUserProfilePicture()
+        val currentUser = auth.currentUser
+        val currentUsername = currentUser?.displayName ?: "Anonymous"
+        val userProfilePicture = currentUser?.photoUrl?.toString()
 
         val review = ReviewModel(
             bookId = bookDocumentId,

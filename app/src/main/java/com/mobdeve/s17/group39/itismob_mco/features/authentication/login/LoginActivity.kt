@@ -24,15 +24,12 @@ import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.LoginActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.features.homepage.HomeActivity
 import com.mobdeve.s17.group39.itismob_mco.models.UserModel
-import com.mobdeve.s17.group39.itismob_mco.utils.JwtUtils
-import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: LoginActivityBinding
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var auth: FirebaseAuth
-    private lateinit var sharedPrefs: SharedPrefsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,12 +39,11 @@ class LoginActivity : AppCompatActivity() {
         // Initialize Firebase
         FirebaseApp.initializeApp(this)
 
-        // Initialize utilities
-        sharedPrefs = SharedPrefsManager(this)
+        // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
 
-        // Check if user has already logged in
-        if (sharedPrefs.isUserLoggedIn()) {
+        // Check if user has already logged in using Firebase Auth
+        if (auth.currentUser != null) {
             navigateToHome()
             return
         }
@@ -174,10 +170,10 @@ class LoginActivity : AppCompatActivity() {
     private fun handleExistingUser(documentId: String, account: GoogleSignInAccount) {
         UsersDatabase.getDocumentReference(documentId).update("date_updated", Timestamp.now())
             .addOnSuccessListener {
-                completeAuthentication(documentId, account, "Welcome back, ${account.displayName}!")
+                completeAuthentication("Welcome back, ${account.displayName}!")
             }
             .addOnFailureListener {
-                completeAuthentication(documentId, account, "Welcome back, ${account.displayName}!")
+                completeAuthentication("Welcome back, ${account.displayName}!")
             }
     }
 
@@ -195,32 +191,16 @@ class LoginActivity : AppCompatActivity() {
 
         UsersDatabase.createWithId(documentId, user)
             .addOnSuccessListener {
-                completeAuthentication(documentId, account, "Welcome to ${R.string.app_name}, ${account.displayName}!")
+                completeAuthentication("Welcome to ${R.string.app_name}, ${account.displayName}!")
             }
             .addOnFailureListener { e ->
-                completeAuthentication(documentId, account, "Welcome, ${account.displayName}!")
+                completeAuthentication("Welcome, ${account.displayName}!")
             }
     }
 
-    private fun completeAuthentication(userId: String, account: GoogleSignInAccount, message: String) {
-        try {
-            val token = JwtUtils.createToken(userId, account.email ?: "", account.displayName ?: "User")
-            sharedPrefs.saveAuthToken(token)
-
-            // Save user info
-            sharedPrefs.saveUserInfo(
-                userId = userId,
-                email = account.email ?: "",
-                name = account.displayName ?: "User",
-                profilePicture = account.photoUrl?.toString() // Save the profile picture URL
-            )
-
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-            navigateToHome()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Authentication complete", Toast.LENGTH_LONG).show()
-            navigateToHome()
-        }
+    private fun completeAuthentication(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        navigateToHome()
     }
 
     private fun navigateToHome() {

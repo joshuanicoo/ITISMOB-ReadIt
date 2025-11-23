@@ -5,14 +5,14 @@ import android.content.Context
 import android.view.Window
 import android.widget.Toast
 import com.bumptech.glide.Glide
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
 import com.mobdeve.s17.group39.itismob_mco.database.ReviewsDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.ReviewBookLayoutBinding
-import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
-import com.google.firebase.Timestamp
 import com.mobdeve.s17.group39.itismob_mco.models.BookModel
-import com.mobdeve.s17.group39.itismob_mco.utils.SharedPrefsManager
+import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 
 class ReviewDialog(
     private val context: Context,
@@ -30,8 +30,8 @@ class ReviewDialog(
 
     private lateinit var dialog: Dialog
     private lateinit var binding: ReviewBookLayoutBinding
-    private val sharedPrefs = SharedPrefsManager(context)
     private var isLiked = isBookLiked
+    private val auth = FirebaseAuth.getInstance()
 
     // Displays the Dialog
     fun show() {
@@ -122,11 +122,6 @@ class ReviewDialog(
             return
         }
 
-        if (currentUserDocumentId.isEmpty()) {
-            Toast.makeText(context, "Please log in to submit a review", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         // Always update or create the user's single review
         createOrUpdateReview(rating, comment)
     }
@@ -163,7 +158,9 @@ class ReviewDialog(
     }
 
     private fun createNewReview(rating: Float, comment: String) {
-        val userProfilePicture = sharedPrefs.getUserProfilePicture()
+        // Get current user from Firebase Auth
+        val currentUser = auth.currentUser
+        val userProfilePicture = currentUser?.photoUrl?.toString()
 
         val review = ReviewModel(
             bookId = bookDocumentId,
