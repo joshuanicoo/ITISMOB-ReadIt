@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.View
 import android.widget.SearchView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,14 +17,11 @@ import com.mobdeve.s17.group39.itismob_mco.features.savedbooks.SavedListsActivit
 import com.mobdeve.s17.group39.itismob_mco.features.scanner.ScannerActivity
 import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksApiInterface
 import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksResponse
-import com.mobdeve.s17.group39.itismob_mco.utils.QuoteApiInterface
-import com.mobdeve.s17.group39.itismob_mco.utils.QuoteResponse
+import com.mobdeve.s17.group39.itismob_mco.utils.LoadingUtils
 import com.mobdeve.s17.group39.itismob_mco.utils.RetrofitInstance
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.util.Locale
 
 @ExperimentalGetImage
@@ -34,7 +30,6 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var binding: HomeActivityBinding
     private lateinit var adapter: HomeAdapter
     private lateinit var apiInterface: GoogleBooksApiInterface
-    private lateinit var quoteApiInterface: QuoteApiInterface
     private lateinit var handler: Handler
 
     private lateinit var genreAdapter: HomeGenreAdapter
@@ -115,53 +110,16 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showLoading() {
-        binding.loadingContainer.visibility = View.VISIBLE // Show both quote and loading
-        binding.bookListRv.visibility = View.GONE
-        getRandomQuote()
+        LoadingUtils.showLoading(
+            binding.loadingContainer,
+            binding.bookListRv,
+            binding.quoteText,
+            binding.quoteAuthor
+        )
     }
 
     private fun hideLoading() {
-        binding.loadingContainer.visibility = View.GONE // Hide both quote and loading
-        binding.bookListRv.visibility = View.VISIBLE
-    }
-
-    private fun getRandomQuote() {
-        val call = quoteApiInterface.getRandomQuote()
-        call.enqueue(object : Callback<List<QuoteResponse>> {
-            override fun onResponse(call: Call<List<QuoteResponse>>, response: Response<List<QuoteResponse>>) {
-                if (response.isSuccessful && response.body() != null && response.body()!!.isNotEmpty()) {
-                    val quote = response.body()!![0]
-                    displayQuote(quote.content, quote.author)
-                } else {
-                    // Fallback quotes in case API fails
-                    displayFallbackQuote()
-                }
-            }
-
-            override fun onFailure(call: Call<List<QuoteResponse>>, t: Throwable) {
-                // Fallback quotes in case of network failure
-                displayFallbackQuote()
-            }
-        })
-    }
-
-    private fun displayQuote(content: String, author: String) {
-        binding.quoteText.text = "\"$content\""
-        binding.quoteAuthor.text = "- $author"
-    }
-
-    private fun displayFallbackQuote() {
-        val fallbackQuotes = listOf(
-            Pair("The only way to do great work is to love what you do.", "Steve Jobs"),
-            Pair("It does not do to dwell on dreams and forget to live.", "J.K. Rowling"),
-            Pair("That's the thing about books. They let you travel without moving your feet.", "Jhumpa Lahiri"),
-            Pair("Reading is essential for those who seek to rise above the ordinary.", "Jim Rohn"),
-            Pair("A room without books is like a body without a soul.", "Marcus Tullius Cicero")
-        )
-
-        val randomQuote = fallbackQuotes.random()
-        binding.quoteText.text = "\"${randomQuote.first}\""
-        binding.quoteAuthor.text = "- ${randomQuote.second}"
+        LoadingUtils.hideLoading(binding.loadingContainer, binding.bookListRv)
     }
 
     private fun getBooks() {
@@ -186,7 +144,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun searchBooks(query : String, size: Int, printType: String){
-        showLoading() // Show loading with new quote when searching
+        showLoading()
         val call = apiInterface.searchBooks(query, size, printType)
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
@@ -208,7 +166,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun searchByISBN(query: String){
-        showLoading() // Show loading with new quote when searching by ISBN
+        showLoading()
         val call = apiInterface.getBookByISBN(query)
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
@@ -262,12 +220,5 @@ class HomeActivity : AppCompatActivity() {
 
     private fun getApiInterface() {
         apiInterface = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
-
-        val quoteRetrofit = Retrofit.Builder()
-            .baseUrl("https://api.quotable.io/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        quoteApiInterface = quoteRetrofit.create(QuoteApiInterface::class.java)
     }
 }

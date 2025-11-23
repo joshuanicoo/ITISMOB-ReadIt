@@ -25,6 +25,7 @@ import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListDialo
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
+import com.mobdeve.s17.group39.itismob_mco.utils.LoadingUtils
 import jp.wasabeef.glide.transformations.BlurTransformation
 import jp.wasabeef.glide.transformations.ColorFilterTransformation
 
@@ -56,6 +57,9 @@ class ViewBookActivity : AppCompatActivity() {
         this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
         setContentView(viewBookVB.root)
 
+        // Show loading initially
+        showLoading()
+
         auth = FirebaseAuth.getInstance()
         currentUserDocumentId = auth.currentUser?.uid ?: ""
 
@@ -71,33 +75,81 @@ class ViewBookActivity : AppCompatActivity() {
         val position = intent.getIntExtra(POSITION_KEY, -1)
         val imageUrl = intent.getStringExtra(IMAGE_URL)
 
+        // Set basic book info immediately
         viewBookVB.titleTv.text = titleString
         viewBookVB.authorTv.text = authorString
         viewBookVB.descriptionTv.text = descriptionString
         viewBookVB.avgRatingRb.rating = avgRatingDouble.toFloat()
         viewBookVB.numberOfRatingsTv.text = ratingCountInt.toString()
 
-        Glide.with(this.applicationContext)
-            .load(imageUrl)
-            .placeholder(R.drawable.content)
-            .error(R.drawable.content)
-            .centerCrop()
-            .into(this.viewBookVB.coverIv)
+        // Load images
+        loadBookImages(imageUrl)
 
-        Glide.with(this.applicationContext)
-            .load(imageUrl)
-            .apply(
-                RequestOptions()
-                    .transform(
-                        CenterCrop(),
-                        BlurTransformation(25, 3),
-                        ColorFilterTransformation(Color.parseColor("#66000000"))
-                    )
-                    .placeholder(R.drawable.content)
-                    .error(R.drawable.content)
-            )
-            .into(this.viewBookVB.bannerIv)
+        // Setup genre RecyclerView
+        setupGenreRecyclerView(genreString)
 
+        // Setup review RecyclerView
+        setupReviewRecyclerView()
+
+        // Load reviews and initialize like state
+        loadReviewsAndInitialize()
+
+        // Setup click listeners
+        setupClickListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh reviews data to ensure like states are current
+        refreshReviewsData()
+    }
+
+    private fun showLoading() {
+        LoadingUtils.showLoading(
+            viewBookVB.loadingContainer,
+            viewBookVB.root.findViewById(R.id.mainContentContainer),
+            viewBookVB.quoteText,
+            viewBookVB.quoteAuthor
+        )
+    }
+
+    private fun hideLoading() {
+        LoadingUtils.hideLoading(
+            viewBookVB.loadingContainer,
+            viewBookVB.root.findViewById(R.id.mainContentContainer)
+        )
+    }
+
+    private fun loadBookImages(imageUrl: String?) {
+        if (!imageUrl.isNullOrEmpty()) {
+            Glide.with(this.applicationContext)
+                .load(imageUrl)
+                .placeholder(R.drawable.content)
+                .error(R.drawable.content)
+                .centerCrop()
+                .into(this.viewBookVB.coverIv)
+
+            Glide.with(this.applicationContext)
+                .load(imageUrl)
+                .apply(
+                    RequestOptions()
+                        .transform(
+                            CenterCrop(),
+                            BlurTransformation(25, 3),
+                            ColorFilterTransformation(Color.parseColor("#66000000"))
+                        )
+                        .placeholder(R.drawable.content)
+                        .error(R.drawable.content)
+                )
+                .into(this.viewBookVB.bannerIv)
+        } else {
+            // Set default images if no image URL
+            viewBookVB.coverIv.setImageResource(R.drawable.content)
+            viewBookVB.bannerIv.setImageResource(R.drawable.content)
+        }
+    }
+
+    private fun setupGenreRecyclerView(genreString: String?) {
         val dataGenre = ArrayList<String>()
         if (!genreString.isNullOrEmpty()) {
             val genres = genreString.split(",").map { it.trim() }
@@ -110,15 +162,30 @@ class ViewBookActivity : AppCompatActivity() {
             LinearLayoutManager.HORIZONTAL,
             false
         )
+    }
 
+    private fun setupReviewRecyclerView() {
         reviewAdapter = ReviewAdapter(reviewList)
         reviewAdapter.currentUserId = currentUserDocumentId
         this.viewBookVB.reviewRv.adapter = reviewAdapter
         this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
+
+        reviewAdapter.onReviewLikeClickListener = { review, position ->
+            handleReviewLikeClick(review, position)
+        }
+    }
+
+    private fun loadReviewsAndInitialize() {
+        // Load reviews and initialize like state
         loadReviews()
 
-        initializeLikeState()
+        // Initialize like state after a short delay to ensure reviews are loaded
+        viewBookVB.root.postDelayed({
+            initializeLikeState()
+        }, 500)
+    }
 
+    private fun setupClickListeners() {
         viewBookVB.likeBtn.setOnClickListener {
             handleLikeClick()
         }
@@ -139,16 +206,6 @@ class ViewBookActivity : AppCompatActivity() {
                 ratingBar.rating = 0f
             }
         }
-
-        reviewAdapter.onReviewLikeClickListener = { review, position ->
-            handleReviewLikeClick(review, position)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Refresh reviews data to ensure like states are current
-        refreshReviewsData()
     }
 
     private fun generateBookDocumentId(): String {
@@ -271,11 +328,9 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun loadReviews() {
-
         if (bookDocumentId.isNotEmpty()) {
             ReviewsDatabase.getReviewsByBookId(bookDocumentId)
                 .addOnSuccessListener { querySnapshot ->
-
                     val reviews = mutableListOf<ReviewModel>()
 
                     for (document in querySnapshot.documents) {
@@ -283,6 +338,7 @@ class ViewBookActivity : AppCompatActivity() {
                             val review = ReviewModel.fromMap(document.id, document.data!!)
                             reviews.add(review)
                         } catch (e: Exception) {
+                            // Handle parsing error
                         }
                     }
 
@@ -305,15 +361,20 @@ class ViewBookActivity : AppCompatActivity() {
                         viewBookVB.reviewRv.visibility = android.view.View.VISIBLE
                         viewBookVB.noReviewsTv.visibility = android.view.View.GONE
                     }
+
+                    // Hide loading once reviews are loaded
+                    hideLoading()
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "Failed to load reviews", Toast.LENGTH_SHORT).show()
                     viewBookVB.reviewRv.visibility = android.view.View.GONE
                     viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
+                    hideLoading()
                 }
         } else {
             viewBookVB.reviewRv.visibility = android.view.View.GONE
             viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
+            hideLoading()
         }
     }
 
@@ -387,7 +448,6 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun handleReviewLikeClick(review: ReviewModel, position: Int) {
-
         ReviewsDatabase.getById(review.id)
             .addOnSuccessListener { documentSnapshot ->
                 if (documentSnapshot.exists()) {
@@ -512,7 +572,7 @@ class ViewBookActivity : AppCompatActivity() {
     private fun showAddToListDialog() {
         AddToListDialog(
             context = this,
-            bookId = bookDocumentId, // Use your book document ID
+            bookId = bookDocumentId,
             onNewListRequested = {
                 showNewListDialog()
             }
@@ -574,6 +634,7 @@ class ViewBookActivity : AppCompatActivity() {
                             val review = ReviewModel.fromMap(document.id, document.data!!)
                             reviews.add(review)
                         } catch (e: Exception) {
+                            // Handle parsing error
                         }
                     }
 

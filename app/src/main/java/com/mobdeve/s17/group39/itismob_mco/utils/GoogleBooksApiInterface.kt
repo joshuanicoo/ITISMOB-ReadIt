@@ -24,19 +24,3 @@ interface GoogleBooksApiInterface {
     ): Call<GoogleBooksResponse>
 
 }
-
-interface QuoteApiInterface {
-    @GET("quotes/random")
-    fun getRandomQuote(): Call<List<QuoteResponse>>
-}
-
-data class QuoteResponse(
-    @SerializedName("_id") val id: String,
-    @SerializedName("content") val content: String,
-    @SerializedName("author") val author: String,
-    @SerializedName("tags") val tags: List<String>,
-    @SerializedName("authorSlug") val authorSlug: String,
-    @SerializedName("length") val length: Int,
-    @SerializedName("dateAdded") val dateAdded: String,
-    @SerializedName("dateModified") val dateModified: String
-)
