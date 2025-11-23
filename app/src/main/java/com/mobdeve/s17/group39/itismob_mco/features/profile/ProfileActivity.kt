@@ -2,8 +2,10 @@ package com.mobdeve.s17.group39.itismob_mco.features.profile
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.SpannableStringBuilder
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -33,6 +35,24 @@ class ProfileActivity : AppCompatActivity() {
             .requestEmail()
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        // Set up current user data
+        val user = auth.currentUser!!
+        // Set current user pfp
+        if (user.photoUrl != null) {
+            Glide.with(binding.root.context)
+                .load(user.photoUrl)
+                .placeholder(R.drawable.user_pfp_placeholder)
+                .error(R.drawable.user_pfp_placeholder)
+                .circleCrop()
+                .into(binding.profilePicIv)
+        } else {
+            binding.profilePicIv.setImageResource(R.drawable.user_pfp_placeholder)
+        }
+        // Set current username
+        binding.profileNameEt.text = SpannableStringBuilder(user.displayName)
+        // Set current bio if available
+
 
         binding.updateProfileBtn.setOnClickListener {
             Toast.makeText(this, "Updated successfully", Toast.LENGTH_SHORT).show()

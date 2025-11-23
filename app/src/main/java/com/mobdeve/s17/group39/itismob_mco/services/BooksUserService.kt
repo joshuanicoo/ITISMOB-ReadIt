@@ -29,14 +29,14 @@ object BookUserService {
             }
             .continueWithTask {
                 // Then add to user's favorites
-                UsersDatabase.addToFavorites(userDocumentId, bookDocumentId)
+                UsersDatabase.addToFavorites(userDocumentId, bookDocumentId.toInt())
             }
     }
 
     // Remove like relationship both ways
     fun removeFromIsLiked(userDocumentId: String, bookDocumentId: String): com.google.android.gms.tasks.Task<Void> {
         // Execute both operations atomically
-        val removeFromFavoritesTask = UsersDatabase.removeFromFavorites(userDocumentId, bookDocumentId)
+        val removeFromFavoritesTask = UsersDatabase.removeFromFavorites(userDocumentId, bookDocumentId.toInt())
         val removeFromLikedByTask = BooksDatabase.removeUserFromLikedBy(bookDocumentId, userDocumentId)
 
         // Wait for both tasks to complete
