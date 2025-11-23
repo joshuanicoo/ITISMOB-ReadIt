@@ -22,10 +22,12 @@ import com.mobdeve.s17.group39.itismob_mco.models.UserModel
 import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksApiInterface
 import com.mobdeve.s17.group39.itismob_mco.utils.LoadingUtils
 import com.mobdeve.s17.group39.itismob_mco.utils.RetrofitInstance
+import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.util.Collections
+import kotlin.coroutines.resumeWithException
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -35,6 +37,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var favoritesAdapter: ProfileFavoritesAdapter
     private lateinit var googleBooksApi: GoogleBooksApiInterface
     private val favoriteBooks = mutableListOf<BookItem>()
+    private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +48,6 @@ class ProfileActivity : AppCompatActivity() {
         setupFavoritesRecyclerView()
         loadUserData()
         setupClickListeners()
-        setupClickListeners()
     }
 
     override fun onResume() {
@@ -55,6 +57,11 @@ class ProfileActivity : AppCompatActivity() {
         currentUser?.let {
             loadFavoriteBooks(it.uid)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineScope.cancel()
     }
 
     private fun initializeAuth() {
@@ -133,41 +140,10 @@ class ProfileActivity : AppCompatActivity() {
                     return@addOnSuccessListener
                 }
 
-                val loadedBooks = Collections.synchronizedList(mutableListOf<BookItem>())
-                val completedCount = java.util.concurrent.atomic.AtomicInteger(0)
-
-                favoriteBookIds.forEach { bookDocumentId ->
-                    val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
-
-                    BooksDatabase.getById(cleanBookId)
-                        .addOnSuccessListener { documentSnapshot ->
-                            if (documentSnapshot.exists()) {
-                                val googleBooksId = extractGoogleBooksId(documentSnapshot.data?.get("bookId"))
-                                if (!googleBooksId.isNullOrEmpty()) {
-                                    fetchBookDetails(googleBooksId, cleanBookId) { bookItem ->
-                                        synchronized(loadedBooks) {
-                                            loadedBooks.add(bookItem)
-                                        }
-                                        if (completedCount.incrementAndGet() == favoriteBookIds.size) {
-                                            updateFavoritesUI(loadedBooks)
-                                        }
-                                    }
-                                } else {
-                                    if (completedCount.incrementAndGet() == favoriteBookIds.size) {
-                                        updateFavoritesUI(loadedBooks)
-                                    }
-                                }
-                            } else {
-                                if (completedCount.incrementAndGet() == favoriteBookIds.size) {
-                                    updateFavoritesUI(loadedBooks)
-                                }
-                            }
-                        }
-                        .addOnFailureListener {
-                            if (completedCount.incrementAndGet() == favoriteBookIds.size) {
-                                updateFavoritesUI(loadedBooks)
-                            }
-                        }
+                // Use coroutines to maintain order and handle async operations properly
+                coroutineScope.launch {
+                    val loadedBooks = loadBooksInOrder(favoriteBookIds)
+                    updateFavoritesUI(loadedBooks)
                 }
             }
             .addOnFailureListener {
@@ -178,84 +154,76 @@ class ProfileActivity : AppCompatActivity() {
             }
     }
 
-    private fun fetchBookDetails(googleBooksId: String, bookDocumentId: String, onBookLoaded: (BookItem) -> Unit) {
-        googleBooksApi.getBookByVolumeId(googleBooksId).enqueue(object : Callback<Map<String, Any>> {
-            override fun onResponse(call: Call<Map<String, Any>>, response: Response<Map<String, Any>>) {
-                val bookItem = if (response.isSuccessful) {
-                    response.body()?.let { bookData ->
-                        val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
-                        volumeInfo?.let {
-                            createBookItemFromVolumeInfo(bookDocumentId, it)
-                        }
+    private suspend fun loadBooksInOrder(favoriteBookIds: List<String>): List<BookItem> = withContext(Dispatchers.IO) {
+        val loadedBooks = mutableListOf<BookItem>()
+
+        // Process books in the order they appear in favorites list
+        favoriteBookIds.forEachIndexed { index, bookDocumentId ->
+            try {
+                val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
+                val documentSnapshot = BooksDatabase.getById(cleanBookId).await()
+
+                if (documentSnapshot.exists()) {
+                    val googleBooksId = extractGoogleBooksId(documentSnapshot.data?.get("bookId"))
+                    if (!googleBooksId.isNullOrEmpty()) {
+                        val bookItem = fetchBookDetailsWithRetry(googleBooksId, cleanBookId)
+                        loadedBooks.add(bookItem)
+                    } else {
+                        // Add placeholder if Google Books ID is not found
+                        loadedBooks.add(createPlaceholderBookItem(cleanBookId))
                     }
                 } else {
-                    BookItem(
-                        id = bookDocumentId,
-                        title = "Unknown Book",
-                        authors = emptyList(),
-                        description = "",
-                        averageRating = 0.0,
-                        ratingsCount = 0,
-                        categories = emptyList(),
-                        thumbnailUrl = ""
-                    )
+                    // Add placeholder if book document doesn't exist
+                    loadedBooks.add(createPlaceholderBookItem(cleanBookId))
                 }
-                onBookLoaded(bookItem ?: BookItem(
-                    id = bookDocumentId,
-                    title = "Unknown Book",
-                    authors = emptyList(),
-                    description = "",
-                    averageRating = 0.0,
-                    ratingsCount = 0,
-                    categories = emptyList(),
-                    thumbnailUrl = ""
-                ))
+            } catch (e: Exception) {
+                // Add placeholder on error but maintain order
+                val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
+                loadedBooks.add(createPlaceholderBookItem(cleanBookId))
             }
+        }
 
-            override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                // Create fallback book item on failure
-                onBookLoaded(BookItem(
-                    id = bookDocumentId,
-                    title = "Unknown Book",
-                    authors = emptyList(),
-                    description = "",
-                    averageRating = 0.0,
-                    ratingsCount = 0,
-                    categories = emptyList(),
-                    thumbnailUrl = ""
-                ))
+        return@withContext loadedBooks
+    }
+
+    private suspend fun fetchBookDetailsWithRetry(googleBooksId: String, bookDocumentId: String): BookItem = withContext(Dispatchers.IO) {
+        try {
+            // Using retrofit's await() for coroutines
+            val response = googleBooksApi.getBookByVolumeId(googleBooksId).await()
+
+            if (response.isSuccessful) {
+                response.body()?.let { bookData ->
+                    val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
+                    volumeInfo?.let {
+                        return@withContext createBookItemFromVolumeInfo(bookDocumentId, it)
+                    }
+                }
             }
-        })
+        } catch (e: Exception) {
+            // Fall through to create placeholder
+        }
+
+        // Return placeholder if API call fails
+        return@withContext createPlaceholderBookItem(bookDocumentId)
+    }
+
+    private fun createPlaceholderBookItem(bookDocumentId: String): BookItem {
+        return BookItem(
+            id = bookDocumentId,
+            title = "Unknown Book",
+            authors = emptyList(),
+            description = "",
+            averageRating = 0.0,
+            ratingsCount = 0,
+            categories = emptyList(),
+            thumbnailUrl = ""
+        )
     }
 
     private fun extractGoogleBooksId(bookIdField: Any?): String? = when (bookIdField) {
         is Long -> bookIdField.toString()
         is String -> bookIdField
         else -> null
-    }
-
-    private fun checkCompletion(completed: Int, total: Int, loadedBooks: MutableList<BookItem>) {
-        if (completed == total) updateFavoritesUI(loadedBooks)
-    }
-
-    private fun fetchBookDetails(googleBooksId: String, bookDocumentId: String, loadedBooks: MutableList<BookItem>, currentCompleted: Int, totalRequests: Int) {
-        googleBooksApi.getBookByVolumeId(googleBooksId).enqueue(object : Callback<Map<String, Any>> {
-            override fun onResponse(call: Call<Map<String, Any>>, response: Response<Map<String, Any>>) {
-                if (response.isSuccessful) {
-                    response.body()?.let { bookData ->
-                        val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
-                        volumeInfo?.let {
-                            loadedBooks.add(createBookItemFromVolumeInfo(bookDocumentId, it))
-                        }
-                    }
-                }
-                checkCompletion(currentCompleted + 1, totalRequests, loadedBooks)
-            }
-
-            override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                checkCompletion(currentCompleted + 1, totalRequests, loadedBooks)
-            }
-        })
     }
 
     private fun createBookItemFromVolumeInfo(bookDocumentId: String, volumeInfo: Map<String, Any>): BookItem {
@@ -265,16 +233,34 @@ class ProfileActivity : AppCompatActivity() {
             else -> emptyList()
         }
 
+        // Clean up description - remove HTML tags and extra whitespace
+        val rawDescription = volumeInfo["description"] as? String ?: ""
+        val cleanDescription = cleanBookDescription(rawDescription)
+
         return BookItem(
             id = bookDocumentId,
             title = volumeInfo["title"] as? String ?: "Unknown Title",
             authors = (volumeInfo["authors"] as? List<String>) ?: emptyList(),
-            description = volumeInfo["description"] as? String ?: "",
+            description = cleanDescription,
             averageRating = (volumeInfo["averageRating"] as? Double) ?: 0.0,
             ratingsCount = (volumeInfo["ratingsCount"] as? Int) ?: 0,
             categories = categories,
             thumbnailUrl = extractThumbnailUrl(volumeInfo)
         )
+    }
+
+    // For some reason googlebooks API sends desc with html tags when searched using Id so well...
+    private fun cleanBookDescription(description: String): String {
+        return description
+            .replace("<br>", "\n")
+            .replace("<br/>", "\n")
+            .replace("<br />", "\n")
+            .replace("<p>", "\n")
+            .replace("</p>", "\n")
+            .replace("<[^>]*>".toRegex(), "")
+            .replace("\\s+".toRegex(), " ")
+            .replace("\n\\s+".toRegex(), "\n")
+            .trim()
     }
 
     private fun parseCategoriesFromString(categoriesString: String): List<String> = when {
@@ -392,4 +378,30 @@ class ProfileActivity : AppCompatActivity() {
         val categories: List<String>,
         val thumbnailUrl: String
     )
+}
+
+suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T {
+    return suspendCancellableCoroutine { continuation ->
+        addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                continuation.resume(task.result, null)
+            } else {
+                continuation.resumeWithException(task.exception ?: Exception("Unknown error"))
+            }
+        }
+    }
+}
+
+suspend fun <T> Call<T>.await(): Response<T> {
+    return suspendCancellableCoroutine { continuation ->
+        enqueue(object : Callback<T> {
+            override fun onResponse(call: Call<T>, response: Response<T>) {
+                continuation.resume(response, null)
+            }
+
+            override fun onFailure(call: Call<T>, t: Throwable) {
+                continuation.resumeWithException(t)
+            }
+        })
+    }
 }
