@@ -232,7 +232,7 @@ class LoginActivity : AppCompatActivity() {
             LoginOnboardingModel(
                 "Your gateway to countless stories.",
                 "Track the books you love, rate and review every page-turner, and build your virtual bookshelf for the world to see.",
-                R.drawable.reading_goose_1
+                R.drawable.reading_goose_3
             )
         )
         tempData.add(
@@ -246,7 +246,7 @@ class LoginActivity : AppCompatActivity() {
             LoginOnboardingModel(
                 "Your Next Favorite Book is Waiting.",
                 "Unleash the power of the world's most passionate reading community. With millions of titles and countless user-generated reviews and shelves, your next five-star read is just a search away.",
-                R.drawable.reading_goose_3
+                R.drawable.reading_goose_1
             )
         )
         return tempData

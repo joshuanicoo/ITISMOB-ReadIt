@@ -128,8 +128,8 @@ class ViewBookActivity : AppCompatActivity() {
         if (!imageUrl.isNullOrEmpty()) {
             Glide.with(this.applicationContext)
                 .load(imageUrl)
-                .placeholder(R.drawable.content)
-                .error(R.drawable.content)
+                .placeholder(R.drawable.book_placeholder)
+                .error(R.drawable.book_placeholder)
                 .centerCrop()
                 .into(this.viewBookVB.coverIv)
 
@@ -142,14 +142,13 @@ class ViewBookActivity : AppCompatActivity() {
                             BlurTransformation(25, 3),
                             ColorFilterTransformation(Color.parseColor("#66000000"))
                         )
-                        .placeholder(R.drawable.content)
-                        .error(R.drawable.content)
+                        .placeholder(android.R.color.transparent)
+                        .error(R.drawable.book_placeholder)
                 )
                 .into(this.viewBookVB.bannerIv)
         } else {
             // Set default images if no image URL
-            viewBookVB.coverIv.setImageResource(R.drawable.content)
-            viewBookVB.bannerIv.setImageResource(R.drawable.content)
+            viewBookVB.coverIv.setImageResource(R.drawable.book_placeholder)
         }
     }
 

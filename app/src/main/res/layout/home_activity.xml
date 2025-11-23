@@ -13,8 +13,6 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:orientation="vertical"
-        android:padding="16dp"
-        android:paddingTop="20dp"
         app:layout_constraintBottom_toTopOf="@id/bottomNavBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -24,6 +22,7 @@
             android:id="@+id/bookSv"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_margin="20dp"
             android:layout_marginTop="20dp"
             android:layout_marginBottom="12dp"
             android:background="@drawable/search_bkg"
@@ -45,22 +44,28 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical" >
+                android:orientation="vertical">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/genreListRv"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:paddingStart="20dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/bookListRv"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
+                    android:layout_marginStart="20dp"
+                    android:layout_marginEnd="20dp"
                     android:layout_weight="1"
                     android:clipToPadding="false"
                     android:gravity="center"
                     android:nestedScrollingEnabled="true"
+                    android:overScrollMode="never"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     android:visibility="gone"

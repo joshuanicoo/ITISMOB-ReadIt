@@ -15,12 +15,12 @@ class HomeViewHolder(private val viewBinding: BooksCardLayoutBinding) : Recycler
         if (!imageUrl.isNullOrEmpty()) {
             Glide.with(itemView.context)
                 .load(imageUrl)
-                .placeholder(R.drawable.content)
-                .error(R.drawable.content)
+                .placeholder(android.R.color.transparent)
+                .error(R.drawable.book_placeholder)
                 .centerCrop()
                 .into(this.viewBinding.bookImageIv)
         } else {
-            this.viewBinding.bookImageIv.setImageResource(R.drawable.content)
+            this.viewBinding.bookImageIv.setImageResource(R.drawable.book_placeholder)
         }
 
         this.viewBinding.bookTitleTv.text = data.volumeInfo.title ?: "Unknown Title"

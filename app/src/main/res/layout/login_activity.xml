@@ -8,75 +8,78 @@
     android:orientation="vertical">
 
     <ImageView
-        android:id="@+id/loginTitleTv"
+        android:id="@+id/appLogoIv"
         android:layout_width="80dp"
         android:layout_height="80dp"
+        android:layout_marginTop="60dp"
         android:layout_marginEnd="15dp"
-        app:layout_constraintBottom_toTopOf="@+id/loginRv"
-        app:layout_constraintEnd_toStartOf="@id/textView"
+        app:layout_constraintEnd_toStartOf="@id/appTitleTv"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/readit_logo" />
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/appTitleTv"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/app_name"
         android:textColor="@color/black"
         android:textSize="70sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@+id/loginTitleTv"
+        app:layout_constraintBottom_toBottomOf="@+id/appLogoIv"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/loginTitleTv"
-        app:layout_constraintTop_toTopOf="@+id/loginTitleTv" />
+        app:layout_constraintStart_toEndOf="@+id/appLogoIv"
+        app:layout_constraintTop_toTopOf="@+id/appLogoIv" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/loginRv"
         android:layout_width="0dp"
-        android:layout_height="450dp"
-        android:layout_marginBottom="20dp"
+        android:layout_height="500dp"
+        android:layout_marginTop="70dp"
         app:layout_constraintBottom_toTopOf="@+id/loginIndicator"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/appTitleTv" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/loginIndicator"
         android:layout_width="30dp"
         android:layout_height="7dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginTop="20dp"
         android:backgroundTint="@color/white"
         android:paddingStart="5dp"
         android:paddingEnd="5dp"
-        app:layout_constraintBottom_toTopOf="@+id/loginBtn"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/loginRv"
         app:tabBackground="@drawable/tab_indicator_selector"
         app:tabGravity="center"
         app:tabIndicatorHeight="0dp" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/loginBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="60dp"
+        android:layout_width="220dp"
+        android:layout_height="70dp"
+        android:layout_marginBottom="20dp"
         android:padding="10dp"
         android:text="@string/login_btn"
         android:textAllCaps="false"
         android:textColor="@color/white"
-        android:textSize="14sp"
+        android:textSize="16sp"
         android:textStyle="bold"
         app:backgroundTint="@color/main_green"
         app:cornerRadius="30dp"
+        app:icon="@drawable/ic_google_with_circle"
         app:iconGravity="start"
         app:iconPadding="8dp"
         app:iconSize="30dp"
-        app:iconTint="@android:color/transparent"
+        app:iconTint="@null"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/loginIndicator"
         app:strokeColor="@color/black"
         app:strokeWidth="1dp" />
 

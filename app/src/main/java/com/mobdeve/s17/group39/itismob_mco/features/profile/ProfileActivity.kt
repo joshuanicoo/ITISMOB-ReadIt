@@ -25,6 +25,7 @@ import com.mobdeve.s17.group39.itismob_mco.utils.RetrofitInstance
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.Collections
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -44,6 +45,16 @@ class ProfileActivity : AppCompatActivity() {
         setupFavoritesRecyclerView()
         loadUserData()
         setupClickListeners()
+        setupClickListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh favorites when returning to profile
+        val currentUser = auth.currentUser
+        currentUser?.let {
+            loadFavoriteBooks(it.uid)
+        }
     }
 
     private fun initializeAuth() {
@@ -82,7 +93,6 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun loadUserData() {
         val currentUser = auth.currentUser ?: run {
-            hideLoading()
             return
         }
 
@@ -91,13 +101,7 @@ class ProfileActivity : AppCompatActivity() {
                 if (documentSnapshot.exists()) {
                     val userModel = UserModel.fromMap(documentSnapshot.id, documentSnapshot.data ?: emptyMap())
                     setupUserProfile(userModel, currentUser)
-                } else {
-                    hideLoading()
                 }
-            }
-            .addOnFailureListener {
-                hideLoading()
-                Toast.makeText(this, "Failed to load user data", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -123,42 +127,105 @@ class ProfileActivity : AppCompatActivity() {
         UsersDatabase.getFavorites(userId)
             .addOnSuccessListener { favoriteBookIds ->
                 if (favoriteBookIds.isEmpty()) {
-                    showNoFavorites()
+                    binding.favoritesRv.visibility = android.view.View.GONE
+                    binding.noFavoritesTv.visibility = android.view.View.VISIBLE
                     hideLoading()
                     return@addOnSuccessListener
                 }
 
-                val loadedBooks = mutableListOf<BookItem>()
-                var completedRequests = 0
+                val loadedBooks = Collections.synchronizedList(mutableListOf<BookItem>())
+                val completedCount = java.util.concurrent.atomic.AtomicInteger(0)
 
                 favoriteBookIds.forEach { bookDocumentId ->
                     val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
 
                     BooksDatabase.getById(cleanBookId)
                         .addOnSuccessListener { documentSnapshot ->
-                            completedRequests++
                             if (documentSnapshot.exists()) {
                                 val googleBooksId = extractGoogleBooksId(documentSnapshot.data?.get("bookId"))
                                 if (!googleBooksId.isNullOrEmpty()) {
-                                    fetchBookDetails(googleBooksId, cleanBookId, loadedBooks, completedRequests, favoriteBookIds.size)
+                                    fetchBookDetails(googleBooksId, cleanBookId) { bookItem ->
+                                        synchronized(loadedBooks) {
+                                            loadedBooks.add(bookItem)
+                                        }
+                                        if (completedCount.incrementAndGet() == favoriteBookIds.size) {
+                                            updateFavoritesUI(loadedBooks)
+                                        }
+                                    }
                                 } else {
-                                    checkCompletion(completedRequests, favoriteBookIds.size, loadedBooks)
+                                    if (completedCount.incrementAndGet() == favoriteBookIds.size) {
+                                        updateFavoritesUI(loadedBooks)
+                                    }
                                 }
                             } else {
-                                checkCompletion(completedRequests, favoriteBookIds.size, loadedBooks)
+                                if (completedCount.incrementAndGet() == favoriteBookIds.size) {
+                                    updateFavoritesUI(loadedBooks)
+                                }
                             }
                         }
                         .addOnFailureListener {
-                            completedRequests++
-                            checkCompletion(completedRequests, favoriteBookIds.size, loadedBooks)
+                            if (completedCount.incrementAndGet() == favoriteBookIds.size) {
+                                updateFavoritesUI(loadedBooks)
+                            }
                         }
                 }
             }
             .addOnFailureListener {
-                showNoFavorites()
+                binding.favoritesRv.visibility = android.view.View.GONE
+                binding.noFavoritesTv.visibility = android.view.View.VISIBLE
                 hideLoading()
                 Toast.makeText(this, "Failed to load favorites", Toast.LENGTH_SHORT).show()
             }
+    }
+
+    private fun fetchBookDetails(googleBooksId: String, bookDocumentId: String, onBookLoaded: (BookItem) -> Unit) {
+        googleBooksApi.getBookByVolumeId(googleBooksId).enqueue(object : Callback<Map<String, Any>> {
+            override fun onResponse(call: Call<Map<String, Any>>, response: Response<Map<String, Any>>) {
+                val bookItem = if (response.isSuccessful) {
+                    response.body()?.let { bookData ->
+                        val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
+                        volumeInfo?.let {
+                            createBookItemFromVolumeInfo(bookDocumentId, it)
+                        }
+                    }
+                } else {
+                    BookItem(
+                        id = bookDocumentId,
+                        title = "Unknown Book",
+                        authors = emptyList(),
+                        description = "",
+                        averageRating = 0.0,
+                        ratingsCount = 0,
+                        categories = emptyList(),
+                        thumbnailUrl = ""
+                    )
+                }
+                onBookLoaded(bookItem ?: BookItem(
+                    id = bookDocumentId,
+                    title = "Unknown Book",
+                    authors = emptyList(),
+                    description = "",
+                    averageRating = 0.0,
+                    ratingsCount = 0,
+                    categories = emptyList(),
+                    thumbnailUrl = ""
+                ))
+            }
+
+            override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
+                // Create fallback book item on failure
+                onBookLoaded(BookItem(
+                    id = bookDocumentId,
+                    title = "Unknown Book",
+                    authors = emptyList(),
+                    description = "",
+                    averageRating = 0.0,
+                    ratingsCount = 0,
+                    categories = emptyList(),
+                    thumbnailUrl = ""
+                ))
+            }
+        })
     }
 
     private fun extractGoogleBooksId(bookIdField: Any?): String? = when (bookIdField) {
@@ -182,11 +249,11 @@ class ProfileActivity : AppCompatActivity() {
                         }
                     }
                 }
-                if (currentCompleted == totalRequests) updateFavoritesUI(loadedBooks)
+                checkCompletion(currentCompleted + 1, totalRequests, loadedBooks)
             }
 
             override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                if (currentCompleted == totalRequests) updateFavoritesUI(loadedBooks)
+                checkCompletion(currentCompleted + 1, totalRequests, loadedBooks)
             }
         })
     }
@@ -252,15 +319,12 @@ class ProfileActivity : AppCompatActivity() {
             favoritesAdapter.updateFavorites(loadedBooks)
             binding.favoritesRv.visibility = android.view.View.VISIBLE
             binding.noFavoritesTv.visibility = android.view.View.GONE
+            hideLoading()
         } else {
-            showNoFavorites()
+            binding.favoritesRv.visibility = android.view.View.GONE
+            binding.noFavoritesTv.visibility = android.view.View.VISIBLE
+            hideLoading()
         }
-        hideLoading()
-    }
-
-    private fun showNoFavorites() {
-        binding.favoritesRv.visibility = android.view.View.GONE
-        binding.noFavoritesTv.visibility = android.view.View.VISIBLE
     }
 
     private fun openBookDetails(book: BookItem) {

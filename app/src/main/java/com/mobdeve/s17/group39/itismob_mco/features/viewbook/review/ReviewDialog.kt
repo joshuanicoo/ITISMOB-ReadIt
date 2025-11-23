@@ -55,8 +55,8 @@ class ReviewDialog(
         // Load book cover
         Glide.with(context)
             .load(bookCoverUrl)
-            .placeholder(R.drawable.content)
-            .error(R.drawable.content)
+            .placeholder(R.drawable.book_placeholder)
+            .error(R.drawable.book_placeholder)
             .centerCrop()
             .into(binding.bookCoverDialogIv)
 

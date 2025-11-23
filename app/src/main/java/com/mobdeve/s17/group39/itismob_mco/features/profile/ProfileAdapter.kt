@@ -17,24 +17,20 @@ class ProfileFavoritesAdapter(private var favorites: List<ProfileActivity.BookIt
         private val bookAuthorTv: TextView = itemView.findViewById(R.id.bookAuthorTv)
 
         fun bind(book: ProfileActivity.BookItem) {
-            // Load book cover
             if (book.thumbnailUrl.isNotEmpty()) {
                 Glide.with(itemView.context)
                     .load(book.thumbnailUrl)
-                    .placeholder(R.drawable.content)
-                    .error(R.drawable.content)
+                    .placeholder(android.R.color.transparent)
+                    .error(R.drawable.book_placeholder)
                     .centerCrop()
                     .into(bookCoverIv)
             } else {
-                bookCoverIv.setImageResource(R.drawable.content)
+                bookCoverIv.setImageResource(R.drawable.book_placeholder)
             }
 
             bookTitleTv.text = book.title
             bookAuthorTv.text = book.authors.joinToString(", ")
-
-            itemView.setOnClickListener {
-                onBookClick(book)
-            }
+            itemView.setOnClickListener { onBookClick(book) }
         }
     }
 
