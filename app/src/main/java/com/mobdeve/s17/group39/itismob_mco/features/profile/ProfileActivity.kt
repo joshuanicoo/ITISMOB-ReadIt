@@ -11,7 +11,9 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.mobdeve.s17.group39.itismob_mco.R
+import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
 import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.ProfileActivityLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.features.authentication.login.LoginActivity
@@ -38,6 +40,13 @@ class ProfileActivity : AppCompatActivity() {
         binding = ProfileActivityLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        initializeAuth()
+        setupFavoritesRecyclerView()
+        loadUserData()
+        setupClickListeners()
+    }
+
+    private fun initializeAuth() {
         auth = FirebaseAuth.getInstance()
         googleBooksApi = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
 
@@ -47,12 +56,7 @@ class ProfileActivity : AppCompatActivity() {
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-        // Show loading initially
         showLoading()
-
-        setupFavoritesRecyclerView()
-        loadUserData()
-        setupClickListeners()
     }
 
     private fun showLoading() {
@@ -69,10 +73,7 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupFavoritesRecyclerView() {
-        favoritesAdapter = ProfileFavoritesAdapter(favoriteBooks) { book ->
-            openBookDetails(book)
-        }
-
+        favoritesAdapter = ProfileFavoritesAdapter(favoriteBooks, ::openBookDetails)
         binding.favoritesRv.apply {
             adapter = favoritesAdapter
             layoutManager = LinearLayoutManager(this@ProfileActivity, LinearLayoutManager.HORIZONTAL, false)
@@ -80,47 +81,42 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun loadUserData() {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            UsersDatabase.getById(currentUser.uid)
-                .addOnSuccessListener { documentSnapshot ->
-                    if (documentSnapshot.exists()) {
-                        val userModel = UserModel.fromMap(documentSnapshot.id, documentSnapshot.data ?: emptyMap())
-
-                        // Set current user pfp
-                        val photoUrl = userModel.profilePicture ?: currentUser.photoUrl?.toString()
-                        if (!photoUrl.isNullOrEmpty()) {
-                            Glide.with(binding.root.context)
-                                .load(photoUrl)
-                                .placeholder(R.drawable.user_pfp_placeholder)
-                                .error(R.drawable.user_pfp_placeholder)
-                                .circleCrop()
-                                .into(binding.profilePicIv)
-                        } else {
-                            binding.profilePicIv.setImageResource(R.drawable.user_pfp_placeholder)
-                        }
-
-                        // Set current username
-                        val username = userModel.username ?: currentUser.displayName ?: "User"
-                        binding.profileNameEt.text = SpannableStringBuilder(username)
-
-                        // Set current bio if available
-                        val bio = userModel.bio ?: ""
-                        binding.profileBioEt.text = SpannableStringBuilder(bio)
-
-                        // Load favorite books
-                        loadFavoriteBooks(currentUser.uid)
-                    } else {
-                        hideLoading()
-                    }
-                }
-                .addOnFailureListener {
-                    hideLoading()
-                    Toast.makeText(this, "Failed to load user data", Toast.LENGTH_SHORT).show()
-                }
-        } else {
+        val currentUser = auth.currentUser ?: run {
             hideLoading()
+            return
         }
+
+        UsersDatabase.getById(currentUser.uid)
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    val userModel = UserModel.fromMap(documentSnapshot.id, documentSnapshot.data ?: emptyMap())
+                    setupUserProfile(userModel, currentUser)
+                } else {
+                    hideLoading()
+                }
+            }
+            .addOnFailureListener {
+                hideLoading()
+                Toast.makeText(this, "Failed to load user data", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun setupUserProfile(userModel: UserModel, currentUser: FirebaseUser) {
+        // Set profile picture
+        val photoUrl = userModel.profilePicture ?: currentUser.photoUrl?.toString()
+        Glide.with(binding.root.context)
+            .load(photoUrl)
+            .placeholder(R.drawable.user_pfp_placeholder)
+            .error(R.drawable.user_pfp_placeholder)
+            .circleCrop()
+            .into(binding.profilePicIv)
+
+        // Set username and bio
+        binding.profileNameEt.text = SpannableStringBuilder(userModel.username ?: currentUser.displayName ?: "User")
+        binding.profileBioEt.text = SpannableStringBuilder(userModel.bio ?: "")
+
+        // Load favorite books
+        loadFavoriteBooks(currentUser.uid)
     }
 
     private fun loadFavoriteBooks(userId: String) {
@@ -132,136 +128,121 @@ class ProfileActivity : AppCompatActivity() {
                     return@addOnSuccessListener
                 }
 
-                println("DEBUG: Favorite book IDs: $favoriteBookIds") // Add this for debugging
-
-                // Fetch book documents directly from Firestore books collection
                 val loadedBooks = mutableListOf<BookItem>()
                 var completedRequests = 0
 
                 favoriteBookIds.forEach { bookDocumentId ->
-                    // Clean up the book document ID - remove any extra quotes or spaces
                     val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
-                    println("DEBUG: Fetching book with ID: $cleanBookId") // Add this for debugging
 
-                    com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase.getById(cleanBookId)
+                    BooksDatabase.getById(cleanBookId)
                         .addOnSuccessListener { documentSnapshot ->
                             completedRequests++
-
                             if (documentSnapshot.exists()) {
-                                val bookData = documentSnapshot.data ?: emptyMap()
-                                println("DEBUG: Found book data: $bookData") // Add this for debugging
-
-                                // Extract the Google Books ID from the book document
-                                val googleBooksId = when (val bookIdField = bookData["bookId"]) {
-                                    is Long -> bookIdField.toString()
-                                    is String -> bookIdField
-                                    else -> null
-                                }
-
+                                val googleBooksId = extractGoogleBooksId(documentSnapshot.data?.get("bookId"))
                                 if (!googleBooksId.isNullOrEmpty()) {
-                                    // Fetch book details from Google Books API
-                                    fetchBookDetailsFromGoogleBooks(
-                                        googleBooksId,
-                                        cleanBookId,
-                                        loadedBooks,
-                                        completedRequests,
-                                        favoriteBookIds.size
-                                    )
+                                    fetchBookDetails(googleBooksId, cleanBookId, loadedBooks, completedRequests, favoriteBookIds.size)
                                 } else {
-                                    // If no Google Books ID, try to use data from Firestore if available
-                                    val bookItem = createBookItemFromFirestoreData(cleanBookId, bookData)
-                                    if (bookItem.title.isNotEmpty()) {
-                                        loadedBooks.add(bookItem)
-                                    }
-
-                                    if (completedRequests == favoriteBookIds.size) {
-                                        updateFavoritesUI(loadedBooks)
-                                    }
+                                    checkCompletion(completedRequests, favoriteBookIds.size, loadedBooks)
                                 }
                             } else {
-                                println("DEBUG: Book document $cleanBookId does not exist")
-                                if (completedRequests == favoriteBookIds.size) {
-                                    updateFavoritesUI(loadedBooks)
-                                }
+                                checkCompletion(completedRequests, favoriteBookIds.size, loadedBooks)
                             }
                         }
-                        .addOnFailureListener { exception ->
+                        .addOnFailureListener {
                             completedRequests++
-                            println("DEBUG: Failed to fetch book $cleanBookId: ${exception.message}")
-                            if (completedRequests == favoriteBookIds.size) {
-                                updateFavoritesUI(loadedBooks)
-                            }
+                            checkCompletion(completedRequests, favoriteBookIds.size, loadedBooks)
                         }
                 }
             }
-            .addOnFailureListener { exception ->
+            .addOnFailureListener {
                 showNoFavorites()
                 hideLoading()
-                println("DEBUG: Failed to load favorites: ${exception.message}")
                 Toast.makeText(this, "Failed to load favorites", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun createBookItemFromFirestoreData(bookDocumentId: String, bookData: Map<String, Any>): BookItem {
-        return BookItem(
-            id = bookDocumentId,
-            title = bookData["title"] as? String ?: "",
-            authors = bookData["authors"] as? List<String> ?: emptyList(),
-            description = bookData["description"] as? String ?: "",
-            averageRating = (bookData["averageRating"] as? Double) ?: 0.0,
-            ratingsCount = (bookData["ratingsCount"] as? Int) ?: 0,
-            categories = bookData["categories"] as? List<String> ?: emptyList(),
-            thumbnailUrl = bookData["thumbnailUrl"] as? String ?: ""
-        )
+    private fun extractGoogleBooksId(bookIdField: Any?): String? = when (bookIdField) {
+        is Long -> bookIdField.toString()
+        is String -> bookIdField
+        else -> null
     }
 
-    private fun fetchBookDetailsFromGoogleBooks(googleBooksId: String, bookDocumentId: String, loadedBooks: MutableList<BookItem>, currentCompleted: Int, totalRequests: Int) {
-        println("DEBUG: Fetching from Google Books API with ID: $googleBooksId")
+    private fun checkCompletion(completed: Int, total: Int, loadedBooks: MutableList<BookItem>) {
+        if (completed == total) updateFavoritesUI(loadedBooks)
+    }
 
+    private fun fetchBookDetails(googleBooksId: String, bookDocumentId: String, loadedBooks: MutableList<BookItem>, currentCompleted: Int, totalRequests: Int) {
         googleBooksApi.getBookByVolumeId(googleBooksId).enqueue(object : Callback<Map<String, Any>> {
             override fun onResponse(call: Call<Map<String, Any>>, response: Response<Map<String, Any>>) {
-                if (response.isSuccessful && response.body() != null) {
-                    val bookData = response.body()!!
-                    val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
-
-                    if (volumeInfo != null) {
-                        val bookItem = createBookItemFromVolumeInfo(bookDocumentId, volumeInfo)
-                        loadedBooks.add(bookItem)
-                        println("DEBUG: Successfully loaded book: ${bookItem.title}")
-                    } else {
-                        println("DEBUG: No volumeInfo in Google Books response")
+                if (response.isSuccessful) {
+                    response.body()?.let { bookData ->
+                        val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
+                        volumeInfo?.let {
+                            loadedBooks.add(createBookItemFromVolumeInfo(bookDocumentId, it))
+                        }
                     }
-                } else {
-                    println("DEBUG: Google Books API response failed: ${response.code()} - ${response.message()}")
                 }
-
-                // Check if all requests are completed
-                if (currentCompleted == totalRequests) {
-                    updateFavoritesUI(loadedBooks)
-                }
+                if (currentCompleted == totalRequests) updateFavoritesUI(loadedBooks)
             }
 
             override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                println("DEBUG: Google Books API call failed: ${t.message}")
-                // Check if all requests are completed
-                if (currentCompleted == totalRequests) {
-                    updateFavoritesUI(loadedBooks)
-                }
+                if (currentCompleted == totalRequests) updateFavoritesUI(loadedBooks)
             }
         })
     }
 
     private fun createBookItemFromVolumeInfo(bookDocumentId: String, volumeInfo: Map<String, Any>): BookItem {
+        val categories = when (val cats = volumeInfo["categories"]) {
+            is List<*> -> cats.filterIsInstance<String>()
+            is String -> parseCategoriesFromString(cats)
+            else -> emptyList()
+        }
+
         return BookItem(
-            id = bookDocumentId, // Use the Firestore document ID
+            id = bookDocumentId,
             title = volumeInfo["title"] as? String ?: "Unknown Title",
             authors = (volumeInfo["authors"] as? List<String>) ?: emptyList(),
             description = volumeInfo["description"] as? String ?: "",
             averageRating = (volumeInfo["averageRating"] as? Double) ?: 0.0,
             ratingsCount = (volumeInfo["ratingsCount"] as? Int) ?: 0,
-            categories = (volumeInfo["categories"] as? List<String>) ?: emptyList(),
-            thumbnailUrl = ((volumeInfo["imageLinks"] as? Map<String, String>)?.get("thumbnail")) ?: ""
+            categories = categories,
+            thumbnailUrl = extractThumbnailUrl(volumeInfo)
         )
+    }
+
+    private fun parseCategoriesFromString(categoriesString: String): List<String> = when {
+        categoriesString.contains(",") -> categoriesString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        else -> listOf(categoriesString.trim())
+    }
+
+    private fun extractThumbnailUrl(volumeInfo: Map<String, Any>): String {
+        val imageLinks = volumeInfo["imageLinks"] as? Map<String, Any>
+        val baseUrl = imageLinks?.let { links ->
+            listOf("thumbnail", "smallThumbnail", "medium", "large", "extraLarge", "small")
+                .mapNotNull { links[it] as? String }
+                .firstOrNull { it.isNotEmpty() }
+        } ?: ""
+
+        return if (baseUrl.isEmpty()) "" else enhanceGoogleBooksUrl(baseUrl)
+    }
+
+    private fun enhanceGoogleBooksUrl(url: String): String {
+        var enhancedUrl = url.replace("http://", "https://").replace("&edge=curl", "")
+
+        when {
+            enhancedUrl.contains("googleapis.com") -> {
+                enhancedUrl = enhancedUrl.replace("zoom=1", "zoom=2").replace("imgmax=128", "imgmax=512")
+                if (!enhancedUrl.contains("imgmax=")) enhancedUrl += if (enhancedUrl.contains("?")) "&imgmax=512" else "?imgmax=512"
+                if (!enhancedUrl.contains("zoom=")) enhancedUrl += if (enhancedUrl.contains("?")) "&zoom=2" else "?zoom=2"
+            }
+            enhancedUrl.contains("books.google.com") -> {
+                enhancedUrl = enhancedUrl.replace("&printsec=frontcover", "&printsec=frontcover&img=1&zoom=2")
+                if (!enhancedUrl.contains("img=")) enhancedUrl += if (enhancedUrl.contains("?")) "&img=1" else "?img=1"
+                if (!enhancedUrl.contains("zoom=")) enhancedUrl += "&zoom=2"
+            }
+        }
+
+        return enhancedUrl
     }
 
     private fun updateFavoritesUI(loadedBooks: List<BookItem>) {
@@ -283,7 +264,7 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun openBookDetails(book: BookItem) {
-        val intent = Intent(this, ViewBookActivity::class.java).apply {
+        startActivity(Intent(this, ViewBookActivity::class.java).apply {
             putExtra(ViewBookActivity.TITLE_KEY, book.title)
             putExtra(ViewBookActivity.AUTHOR_KEY, book.authors.joinToString(", "))
             putExtra(ViewBookActivity.DESCRIPTION_KEY, book.description)
@@ -292,44 +273,33 @@ class ProfileActivity : AppCompatActivity() {
             putExtra(ViewBookActivity.GENRE_KEY, book.categories.joinToString(", "))
             putExtra(ViewBookActivity.IMAGE_URL, book.thumbnailUrl)
             putExtra(ViewBookActivity.ID_KEY, book.id.removePrefix("book_"))
-        }
-        startActivity(intent)
+        })
     }
 
     private fun setupClickListeners() {
-        binding.updateProfileBtn.setOnClickListener {
-            updateProfile()
-        }
-
-        binding.logoutBtn.setOnClickListener {
-            logout()
-        }
+        binding.updateProfileBtn.setOnClickListener { updateProfile() }
+        binding.logoutBtn.setOnClickListener { logout() }
     }
 
     private fun updateProfile() {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            val newUsername = binding.profileNameEt.text.toString().trim()
-            val newBio = binding.profileBioEt.text.toString().trim()
+        val currentUser = auth.currentUser ?: return
 
-            if (newUsername.isEmpty()) {
-                Toast.makeText(this, "Username cannot be empty", Toast.LENGTH_SHORT).show()
-                return
-            }
+        val newUsername = binding.profileNameEt.text.toString().trim()
+        val newBio = binding.profileBioEt.text.toString().trim()
 
-            val updates = hashMapOf<String, Any>(
-                "username" to newUsername,
-                "bio" to newBio,
-                "date_updated" to com.google.firebase.Timestamp.now()
-            )
+        if (newUsername.isEmpty()) {
+            Toast.makeText(this, "Username cannot be empty", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-            UsersDatabase.update(currentUser.uid, updates)
-                .addOnSuccessListener {
-                    Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+        UsersDatabase.update(currentUser.uid, mapOf(
+            "username" to newUsername,
+            "bio" to newBio,
+            "date_updated" to com.google.firebase.Timestamp.now()
+        )).addOnSuccessListener {
+            Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+        }.addOnFailureListener { e ->
+            Toast.makeText(this, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -342,13 +312,12 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun navigateToLogin() {
-        val intent = Intent(this, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
+        startActivity(Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
         finish()
     }
 
-    // Data class for displaying book items in the RecyclerView
     data class BookItem(
         val id: String,
         val title: String,

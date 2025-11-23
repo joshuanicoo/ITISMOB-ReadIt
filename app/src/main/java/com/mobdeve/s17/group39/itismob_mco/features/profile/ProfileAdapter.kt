@@ -9,10 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.mobdeve.s17.group39.itismob_mco.R
 
-class ProfileFavoritesAdapter(
-    private var favorites: List<ProfileActivity.BookItem> = emptyList(),
-    private val onBookClick: (ProfileActivity.BookItem) -> Unit
-) : RecyclerView.Adapter<ProfileFavoritesAdapter.FavoriteBookViewHolder>() {
+class ProfileFavoritesAdapter(private var favorites: List<ProfileActivity.BookItem> = emptyList(), private val onBookClick: (ProfileActivity.BookItem) -> Unit) : RecyclerView.Adapter<ProfileFavoritesAdapter.FavoriteBookViewHolder>() {
 
     inner class FavoriteBookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val bookCoverIv: ImageView = itemView.findViewById(R.id.bookCoverIv)

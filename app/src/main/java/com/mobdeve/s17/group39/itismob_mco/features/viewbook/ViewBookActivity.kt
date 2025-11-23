@@ -59,6 +59,10 @@ class ViewBookActivity : AppCompatActivity() {
 
         // Show loading initially
         showLoading()
+        setContentView(viewBookVB.root)
+
+        // Show loading initially
+        showLoading()
 
         auth = FirebaseAuth.getInstance()
         currentUserDocumentId = auth.currentUser?.uid ?: ""
@@ -151,9 +155,17 @@ class ViewBookActivity : AppCompatActivity() {
 
     private fun setupGenreRecyclerView(genreString: String?) {
         val dataGenre = ArrayList<String>()
+
         if (!genreString.isNullOrEmpty()) {
-            val genres = genreString.split(",").map { it.trim() }
-            dataGenre.addAll(genres)
+            // Check if the string contains commas (indicating multiple categories)
+            if (genreString.contains(",")) {
+                // Split by comma and trim each category
+                val genres = genreString.split(",").map { it.trim() }
+                dataGenre.addAll(genres)
+            } else {
+                // Single category, just add it
+                dataGenre.add(genreString.trim())
+            }
         }
 
         this.viewBookVB.genreRv.adapter = GenreAdapter(dataGenre)
