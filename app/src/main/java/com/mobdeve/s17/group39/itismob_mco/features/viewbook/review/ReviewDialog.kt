@@ -232,7 +232,7 @@ class ReviewDialog(
     private fun createBookInCollection(callback: (Boolean) -> Unit) {
         val bookModel = BookModel(
             documentId = bookDocumentId,
-            bookId = googleBooksId.toIntOrNull() ?: googleBooksId.hashCode(),
+            bookId = googleBooksId,
             likedBy = emptyList(),
             reviews = emptyList()
         )

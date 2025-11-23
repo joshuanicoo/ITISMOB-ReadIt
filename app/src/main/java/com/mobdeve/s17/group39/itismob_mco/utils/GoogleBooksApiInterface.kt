@@ -1,8 +1,8 @@
 package com.mobdeve.s17.group39.itismob_mco.utils
 
-import com.google.gson.annotations.SerializedName
 import retrofit2.Call
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface GoogleBooksApiInterface {
@@ -23,4 +23,8 @@ interface GoogleBooksApiInterface {
         @Query("printType") printType: String = "books"
     ): Call<GoogleBooksResponse>
 
+    @GET("volumes/{volumeId}")
+    fun getBookByVolumeId(
+        @Path("volumeId") volumeId: String
+    ): Call<Map<String, Any>>
 }

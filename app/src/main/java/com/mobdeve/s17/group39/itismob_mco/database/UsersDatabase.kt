@@ -42,4 +42,24 @@ object UsersDatabase : DatabaseHandler<UserModel>(FirestoreDatabase.usersCollect
                 }
             }
     }
+
+    // Get user's favorite books
+    fun getFavorites(userId: String): Task<List<String>> {
+        return collectionRef
+            .document(userId)
+            .get()
+            .continueWith { task ->
+                if (!task.isSuccessful) {
+                    throw task.exception!!
+                }
+
+                val document = task.result
+                if (document != null && document.exists()) {
+                    val favorites = document.get("favorites") as? List<String> ?: emptyList()
+                    favorites
+                } else {
+                    emptyList()
+                }
+            }
+    }
 }

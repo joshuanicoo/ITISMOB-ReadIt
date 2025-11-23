@@ -27,4 +27,15 @@ object BooksDatabase : DatabaseHandler<BookModel>(FirestoreDatabase.booksCollect
             .whereArrayContains("likedBy", userDocumentId)
             .get()
     }
+
+    // Create a book
+    fun createBookWithGoogleId(documentId: String, googleBooksId: String): Task<Void> {
+        val bookModel = BookModel(
+            documentId = documentId,
+            bookId = googleBooksId,
+            likedBy = emptyList(),
+            reviews = emptyList()
+        )
+        return createWithId(documentId, bookModel)
+    }
 }

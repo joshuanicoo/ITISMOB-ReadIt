@@ -235,12 +235,6 @@ class ViewBookActivity : AppCompatActivity() {
             return
         }
 
-        val googleBooksIdInt = try {
-            googleBooksId.toInt()
-        } catch (e: NumberFormatException) {
-            googleBooksId.hashCode()
-        }
-
         if (isLiked) {
             BookUserService.removeFromIsLiked(currentUserDocumentId, bookDocumentId)
                 .addOnSuccessListener {
@@ -252,7 +246,7 @@ class ViewBookActivity : AppCompatActivity() {
                     Toast.makeText(this, "Failed to remove from favorites", Toast.LENGTH_SHORT).show()
                 }
         } else {
-            BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksIdInt)
+            BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksId)
                 .addOnSuccessListener {
                     isLiked = true
                     updateLikeButtonUI()
@@ -303,14 +297,8 @@ class ViewBookActivity : AppCompatActivity() {
             isLiked = newLikeState
             updateLikeButtonUI()
 
-            val googleBooksIdInt = try {
-                googleBooksId.toInt()
-            } catch (e: NumberFormatException) {
-                googleBooksId.hashCode()
-            }
-
             if (newLikeState) {
-                BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksIdInt)
+                BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksId)
                     .addOnFailureListener { e ->
                         isLiked = !newLikeState
                         updateLikeButtonUI()
@@ -511,15 +499,10 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun createBookInCollection(callback: (Boolean) -> Unit) {
-        val googleBooksIdInt = try {
-            googleBooksId.toInt()
-        } catch (e: NumberFormatException) {
-            googleBooksId.hashCode()
-        }
-
+        // Store the Google Books ID as string directly
         val bookModel = BookModel(
             documentId = bookDocumentId,
-            bookId = googleBooksIdInt,
+            bookId = googleBooksId, // Store as string
             likedBy = emptyList(),
             reviews = emptyList()
         )

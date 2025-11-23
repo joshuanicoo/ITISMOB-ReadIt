@@ -7,8 +7,8 @@ import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 
 object BookUserService {
 
-    // Add like relationship both ways
-    fun addToIsLiked(userDocumentId: String, bookDocumentId: String, googleBooksId: Int): com.google.android.gms.tasks.Task<Void> {
+    // Add like relationship both ways - updated to use String googleBooksId
+    fun addToIsLiked(userDocumentId: String, bookDocumentId: String, googleBooksId: String): com.google.android.gms.tasks.Task<Void> {
         // First check if book exists
         return BooksDatabase.getById(bookDocumentId)
             .continueWithTask { bookTask ->
@@ -19,7 +19,7 @@ object BookUserService {
                     // Book doesn't exist, create it first with the user already in likedBy
                     val bookModel = BookModel(
                         documentId = bookDocumentId,
-                        bookId = googleBooksId,
+                        bookId = googleBooksId, // Now using String
                         likedBy = listOf(userDocumentId),
                         reviews = emptyList()
                     )
