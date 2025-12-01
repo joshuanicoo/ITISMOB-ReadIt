@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "939320437291-htfg2k8049q8huosuopiebjmngrll7s9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mobdeve.s17.group39.itismob_mco",
+            "certificate_hash": "4406ea5f5ab97a110bd97d01ed16f0a0af256084"
+          }
+        },
+        {
           "client_id": "939320437291-i9064hr1n198lkmso3a9mcs1hb75to09.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
