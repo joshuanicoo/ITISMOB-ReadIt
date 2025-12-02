@@ -103,7 +103,7 @@ class SavedListsActivity : AppCompatActivity() {
         } else {
             // Exiting delete mode
             binding.deleteModeBtn.setImageDrawable(
-                ContextCompat.getDrawable(this, R.drawable.ic_delete)
+                ContextCompat.getDrawable(this, R.drawable.ic_delete_outline)
             )
             binding.deleteModeBtn.setColorFilter(
                 ContextCompat.getColor(this, R.color.main_green)
