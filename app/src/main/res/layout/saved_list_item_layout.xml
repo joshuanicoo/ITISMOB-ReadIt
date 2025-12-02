@@ -9,6 +9,20 @@
     android:padding="16dp"
     android:layout_marginBottom="8dp">
 
+    <ImageButton
+        android:id="@+id/deleteListBtn"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/delete_list"
+        android:src="@drawable/ic_delete"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/listNameTv"
+        app:layout_constraintEnd_toStartOf="@+id/bookCountTv"
+        app:layout_constraintTop_toTopOf="@+id/listNameTv"
+        app:tint="@color/error_red" />
+
     <TextView
         android:id="@+id/listNameTv"
         android:layout_width="0dp"
@@ -17,7 +31,7 @@
         android:textColor="@color/black"
         android:textSize="16sp"
         android:textStyle="bold"
-        app:layout_constraintEnd_toStartOf="@+id/bookCountTv"
+        app:layout_constraintEnd_toStartOf="@+id/deleteListBtn"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -28,8 +42,9 @@
         android:text="0 books"
         android:textColor="@color/gray"
         android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="@+id/listNameTv"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="@+id/listNameTv" />
 
     <View
         android:id="@+id/divider"

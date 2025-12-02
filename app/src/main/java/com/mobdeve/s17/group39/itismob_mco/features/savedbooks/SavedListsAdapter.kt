@@ -7,8 +7,11 @@ import com.mobdeve.s17.group39.itismob_mco.databinding.SavedListItemLayoutBindin
 
 class SavedListsAdapter(
     private var data: List<SavedList>,
-    private val onItemClick: (SavedList) -> Unit
+    private val onItemClick: (SavedList) -> Unit,
+    private val onDeleteClick: ((String) -> Unit)? = null // Add delete callback
 ) : RecyclerView.Adapter<SavedListsViewHolder>() {
+
+    private var isDeleteMode: Boolean = false
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SavedListsViewHolder {
         val itemViewBinding: SavedListItemLayoutBinding = SavedListItemLayoutBinding.inflate(
@@ -20,9 +23,25 @@ class SavedListsAdapter(
     }
 
     override fun onBindViewHolder(holder: SavedListsViewHolder, position: Int) {
-        holder.bindData(data[position])
-        holder.itemView.setOnClickListener {
-            onItemClick(data[position])
+        val savedList = data[position]
+
+        holder.bindData(
+            data = savedList,
+            isDeleteMode = isDeleteMode,
+            onDeleteClick = if (isDeleteMode) {
+                { onDeleteClick?.invoke(savedList.id) }
+            } else {
+                null
+            }
+        )
+
+        // Set item click listener only if not in delete mode
+        if (!isDeleteMode) {
+            holder.itemView.setOnClickListener {
+                onItemClick(savedList)
+            }
+        } else {
+            holder.itemView.setOnClickListener(null)
         }
     }
 
@@ -34,4 +53,12 @@ class SavedListsAdapter(
         data = newData
         notifyDataSetChanged()
     }
+
+    // Add method to toggle delete mode
+    fun setDeleteMode(deleteMode: Boolean) {
+        isDeleteMode = deleteMode
+        notifyDataSetChanged()
+    }
+
+    fun getDeleteMode(): Boolean = isDeleteMode
 }

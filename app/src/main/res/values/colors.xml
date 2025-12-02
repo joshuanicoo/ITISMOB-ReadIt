@@ -13,4 +13,5 @@
     <color name="main_orange">#F4991A</color>
     <color name="light_grey">#E0E0E0</color>
     <color name="gray">#A6A6A6</color>
+    <color name="error_red">#F44336</color>
 </resources>

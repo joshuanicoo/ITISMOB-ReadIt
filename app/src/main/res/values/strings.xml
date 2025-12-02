@@ -31,4 +31,7 @@
     <string name="likes_holder">67</string>
     <string name="book_image" />
 
+    //delete list
+    <string name="delete_mode">Toggle delete mode</string>
+    <string name="delete_list">Delete this list</string>
 </resources>
