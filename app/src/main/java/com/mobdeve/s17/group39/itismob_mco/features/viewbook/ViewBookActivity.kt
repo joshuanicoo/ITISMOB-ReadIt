@@ -44,93 +44,96 @@ class ViewBookActivity : AppCompatActivity() {
         const val ID_KEY = "ID_KEY"
     }
 
-    private lateinit var viewBookVB: ViewBookActivityBinding
+    private lateinit var binding: ViewBookActivityBinding
     private lateinit var auth: FirebaseAuth
-    private var currentUserDocumentId: String = ""
-    private var bookDocumentId: String = ""
+    private var userId: String = ""
+    private var bookDocId: String = ""
     private var googleBooksId: String = ""
     private var isLiked = false
     private lateinit var reviewAdapter: ReviewAdapter
-    private val reviewList = ArrayList<ReviewModel>()
+    private val reviews = ArrayList<ReviewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        this.viewBookVB = ViewBookActivityBinding.inflate(layoutInflater)
-        setContentView(viewBookVB.root)
+        binding = ViewBookActivityBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        // Show loading initially
         showLoading()
 
         auth = FirebaseAuth.getInstance()
-        currentUserDocumentId = auth.currentUser?.uid ?: ""
+        userId = auth.currentUser?.uid ?: ""
 
+        // Get book details from the previous screen
         googleBooksId = intent.getStringExtra(ID_KEY) ?: ""
-        bookDocumentId = generateBookDocumentId()
+        bookDocId = "book_${googleBooksId}" // Our custom ID format
 
-        val titleString = intent.getStringExtra(TITLE_KEY).toString()
-        val authorString = intent.getStringExtra(AUTHOR_KEY).toString()
-        val descriptionString = intent.getStringExtra(DESCRIPTION_KEY).toString()
-        val avgRatingDouble = intent.getDoubleExtra(AVG_RATING_KEY, 0.0)
-        val ratingCountInt = intent.getIntExtra(RATING_COUNT_KEY, 0)
-        val genreString = intent.getStringExtra(GENRE_KEY)
+        val title = intent.getStringExtra(TITLE_KEY).toString()
+        val author = intent.getStringExtra(AUTHOR_KEY).toString()
+        val description = intent.getStringExtra(DESCRIPTION_KEY).toString()
+        val avgRating = intent.getDoubleExtra(AVG_RATING_KEY, 0.0)
+        val ratingCount = intent.getIntExtra(RATING_COUNT_KEY, 0)
+        val genre = intent.getStringExtra(GENRE_KEY)
         val imageUrl = intent.getStringExtra(IMAGE_URL)
 
-        // Set basic book info immediately
-        viewBookVB.titleTv.text = titleString
-        viewBookVB.authorTv.text = authorString
-        viewBookVB.descriptionTv.text = descriptionString
-        viewBookVB.avgRatingRb.rating = avgRatingDouble.toFloat()
-        viewBookVB.numberOfRatingsTv.text = ratingCountInt.toString()
+        // Set up the basic book info
+        binding.titleTv.text = title
+        binding.authorTv.text = author
+        binding.descriptionTv.text = description
+        binding.avgRatingRb.rating = avgRating.toFloat()
+        binding.numberOfRatingsTv.text = ratingCount.toString()
 
-        // Load images
-        loadBookImages(imageUrl)
+        // Load book cover and banner images
+        loadImages(imageUrl)
 
-        // Setup genre RecyclerView
-        setupGenreRecyclerView(genreString)
+        // Set up genre tags
+        setupGenres(genre)
 
-        // Setup review RecyclerView
-        setupReviewRecyclerView()
+        // Set up the reviews list
+        setupReviewsList()
 
-        // Load reviews and initialize like state
-        loadReviewsAndInitialize()
+        // Load reviews and check if user already liked this book
+        loadReviews()
+        checkIfLiked()
 
-        // Setup click listeners
-        setupClickListeners()
+        // Set up clickables
+        setupClicks()
     }
 
     override fun onResume() {
         super.onResume()
-        // Refresh reviews data to ensure like states are current
-        refreshReviewsData()
+        // Refresh reviews when coming back to this screen
+        refreshReviews()
     }
 
     private fun showLoading() {
         LoadingUtils.showLoading(
-            viewBookVB.loadingContainer,
-            viewBookVB.root.findViewById(R.id.mainContentContainer),
-            viewBookVB.quoteText,
-            viewBookVB.quoteAuthor
+            binding.loadingContainer,
+            binding.root.findViewById(R.id.mainContentContainer),
+            binding.quoteText,
+            binding.quoteAuthor
         )
     }
 
     private fun hideLoading() {
         LoadingUtils.hideLoading(
-            viewBookVB.loadingContainer,
-            viewBookVB.root.findViewById(R.id.mainContentContainer)
+            binding.loadingContainer,
+            binding.root.findViewById(R.id.mainContentContainer)
         )
     }
 
-    private fun loadBookImages(imageUrl: String?) {
+    private fun loadImages(imageUrl: String?) {
         if (!imageUrl.isNullOrEmpty()) {
-            Glide.with(this.applicationContext)
+            // Load the book cover
+            Glide.with(this)
                 .load(imageUrl)
                 .placeholder(R.drawable.book_placeholder)
                 .error(R.drawable.book_placeholder)
                 .centerCrop()
-                .into(this.viewBookVB.coverIv)
+                .into(binding.coverIv)
 
-            Glide.with(this.applicationContext)
+            // Load the blurred banner background
+            Glide.with(this)
                 .load(imageUrl)
                 .apply(
                     RequestOptions()
@@ -142,444 +145,446 @@ class ViewBookActivity : AppCompatActivity() {
                         .placeholder(android.R.color.transparent)
                         .error(R.drawable.book_placeholder)
                 )
-                .into(this.viewBookVB.bannerIv)
-        } else {
-            // Set default images if no image URL
-            viewBookVB.coverIv.setImageResource(R.drawable.book_placeholder)
+                .into(binding.bannerIv)
         }
     }
 
-    private fun setupGenreRecyclerView(genreString: String?) {
-        val dataGenre = ArrayList<String>()
+    private fun setupGenres(genreString: String?) {
+        val genres = ArrayList<String>()
 
         if (!genreString.isNullOrEmpty()) {
-            // Check if the string contains commas (indicating multiple categories)
+            // Split categories by comma (e.g., "Fiction, Science, Adventure")
             if (genreString.contains(",")) {
-                // Split by comma and trim each category
-                val genres = genreString.split(",").map { it.trim() }
-                dataGenre.addAll(genres)
+                val genreList = genreString.split(",").map { it.trim() }
+                genres.addAll(genreList)
             } else {
-                // Single category, just add it
-                dataGenre.add(genreString.trim())
+                // Single category
+                genres.add(genreString.trim())
             }
         }
 
-        this.viewBookVB.genreRv.adapter = GenreAdapter(dataGenre)
-        this.viewBookVB.genreRv.layoutManager = LinearLayoutManager(
+        binding.genreRv.adapter = GenreAdapter(genres)
+        binding.genreRv.layoutManager = LinearLayoutManager(
             this,
             LinearLayoutManager.HORIZONTAL,
             false
         )
     }
 
-    private fun setupReviewRecyclerView() {
-        reviewAdapter = ReviewAdapter(reviewList)
-        reviewAdapter.currentUserId = currentUserDocumentId
-        this.viewBookVB.reviewRv.adapter = reviewAdapter
-        this.viewBookVB.reviewRv.layoutManager = LinearLayoutManager(this)
+    private fun setupReviewsList() {
+        reviewAdapter = ReviewAdapter(reviews)
+        reviewAdapter.currentUserId = userId
+        binding.reviewRv.adapter = reviewAdapter
+        binding.reviewRv.layoutManager = LinearLayoutManager(this)
 
+        // Handle when someone likes a review
         reviewAdapter.onReviewLikeClickListener = { review, position ->
-            handleReviewLikeClick(review, position)
+            handleReviewLike(review, position)
         }
     }
 
-    private fun loadReviewsAndInitialize() {
-        // Load reviews and initialize like state
-        loadReviews()
-
-        // Initialize like state after a short delay to ensure reviews are loaded
-        viewBookVB.root.postDelayed({
-            initializeLikeState()
+    private fun checkIfLiked() {
+        // Check if the current user has already liked this book
+        binding.root.postDelayed({
+            if (userId.isNotEmpty() && bookDocId.isNotEmpty()) {
+                BookUserService.isBookLikedByUser(userId, bookDocId)
+                    .addOnSuccessListener { liked ->
+                        isLiked = liked
+                        updateLikeButton()
+                    }
+                    .addOnFailureListener {
+                        isLiked = false
+                        updateLikeButton()
+                    }
+            } else {
+                binding.likeBtn.isEnabled = userId.isNotEmpty()
+                updateLikeButton()
+            }
         }, 500)
     }
 
-    private fun setupClickListeners() {
-        viewBookVB.likeBtn.setOnClickListener {
-            handleLikeClick()
+    private fun setupClicks() {
+        // Like button - add/remove from favorites
+        binding.likeBtn.setOnClickListener {
+            handleLike()
         }
 
-        viewBookVB.reviewBtn.setOnClickListener {
+        // Review button - open review dialog
+        binding.reviewBtn.setOnClickListener {
             showReviewDialog()
         }
 
-        viewBookVB.addToListBtn.setOnClickListener {
+        // Add to list button - save to custom reading lists
+        binding.addToListBtn.setOnClickListener {
             showAddToListDialog()
         }
 
-        viewBookVB.rateRb.setOnRatingBarChangeListener { ratingBar, rating, fromUser ->
-            if (fromUser && currentUserDocumentId.isNotEmpty()) {
-                handleRatingChange(rating.toFloat())
+        // Star rating - quick rating without writing review
+        binding.rateRb.setOnRatingBarChangeListener { ratingBar, rating, fromUser ->
+            if (fromUser && userId.isNotEmpty()) {
+                handleRating(rating.toFloat())
             }
         }
     }
 
-    private fun generateBookDocumentId(): String {
-        return "book_${googleBooksId}"
-    }
-
-    private fun initializeLikeState() {
-        if (currentUserDocumentId.isNotEmpty() && bookDocumentId.isNotEmpty()) {
-            BookUserService.isBookLikedByUser(currentUserDocumentId, bookDocumentId)
-                .addOnSuccessListener { liked ->
-                    isLiked = liked
-                    updateLikeButtonUI()
-                }
-                .addOnFailureListener {
-                    isLiked = false
-                    updateLikeButtonUI()
-                }
-        } else {
-            viewBookVB.likeBtn.isEnabled = currentUserDocumentId.isNotEmpty()
-            updateLikeButtonUI()
-        }
-    }
-
-    private fun handleLikeClick() {
-        if (currentUserDocumentId.isEmpty()) {
+    private fun handleLike() {
+        if (userId.isEmpty()) {
             Toast.makeText(this, "Please log in to like books", Toast.LENGTH_SHORT).show()
             return
         }
 
         if (isLiked) {
-            BookUserService.removeFromIsLiked(currentUserDocumentId, bookDocumentId)
+            // Remove from favorites
+            BookUserService.removeFromIsLiked(userId, bookDocId)
                 .addOnSuccessListener {
                     isLiked = false
-                    updateLikeButtonUI()
+                    updateLikeButton()
                     Toast.makeText(this, "Removed from favorites", Toast.LENGTH_SHORT).show()
+                    updateReviewLikeStatus()
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to remove from favorites", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Failed to remove", Toast.LENGTH_SHORT).show()
                 }
         } else {
-            BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksId)
+            // Add to favorites
+            BookUserService.addToIsLiked(userId, bookDocId, googleBooksId)
                 .addOnSuccessListener {
                     isLiked = true
-                    updateLikeButtonUI()
+                    updateLikeButton()
                     Toast.makeText(this, "Added to favorites!", Toast.LENGTH_SHORT).show()
+                    updateReviewLikeStatus() // Also update any existing review
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to add to favorites", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Failed to add", Toast.LENGTH_SHORT).show()
                 }
         }
     }
 
-    private fun updateLikeButtonUI() {
+    private fun updateLikeButton() {
         if (isLiked) {
-            viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_on)
+            binding.likeBtn.setIconResource(R.drawable.ic_heart_on)
         } else {
-            viewBookVB.likeBtn.setIconResource(R.drawable.ic_heart_off)
+            binding.likeBtn.setIconResource(R.drawable.ic_heart_off)
         }
-
-        viewBookVB.likeBtn.isEnabled = currentUserDocumentId.isNotEmpty()
+        binding.likeBtn.isEnabled = userId.isNotEmpty()
     }
 
     private fun showReviewDialog() {
-        val existingUserRating = findUserRating(reviewList)
+        val userRating = findUserRating()
 
         ReviewDialog(
             context = this,
             bookTitle = intent.getStringExtra(TITLE_KEY).toString(),
             bookCoverUrl = intent.getStringExtra(IMAGE_URL),
-            bookDocumentId = bookDocumentId,
+            bookDocumentId = bookDocId,
             googleBooksId = googleBooksId,
-            currentUserDocumentId = currentUserDocumentId,
-            existingUserRating = existingUserRating,
+            currentUserDocumentId = userId,
+            existingUserRating = userRating,
             isBookLiked = isLiked,
             onReviewSubmitted = {
-                loadReviews()
+                loadReviews() // Refresh after submitting
             },
-            onLikeToggled = { newLikeState ->
-                handleLikeStateChange(newLikeState)
+            onLikeToggled = { newLike ->
+                handleLikeToggle(newLike)
             }
         ).show()
     }
 
-    private fun handleLikeStateChange(newLikeState: Boolean) {
-        if (newLikeState != isLiked) {
-            isLiked = newLikeState
-            updateLikeButtonUI()
+    private fun handleLikeToggle(newLike: Boolean) {
+        if (newLike != isLiked) {
+            isLiked = newLike
+            updateLikeButton()
+            updateReviewLikeStatus()
 
-            if (newLikeState) {
-                BookUserService.addToIsLiked(currentUserDocumentId, bookDocumentId, googleBooksId)
+            if (newLike) {
+                BookUserService.addToIsLiked(userId, bookDocId, googleBooksId)
                     .addOnFailureListener { e ->
-                        isLiked = !newLikeState
-                        updateLikeButtonUI()
-                        Toast.makeText(this, "Failed to like book", Toast.LENGTH_SHORT).show()
+                        isLiked = !newLike
+                        updateLikeButton()
+                        Toast.makeText(this, "Failed to like", Toast.LENGTH_SHORT).show()
                     }
             } else {
-                BookUserService.removeFromIsLiked(currentUserDocumentId, bookDocumentId)
+                BookUserService.removeFromIsLiked(userId, bookDocId)
                     .addOnFailureListener { e ->
-                        isLiked = !newLikeState
-                        updateLikeButtonUI()
-                        Toast.makeText(this, "Failed to unlike book", Toast.LENGTH_SHORT).show()
+                        isLiked = !newLike
+                        updateLikeButton()
+                        Toast.makeText(this, "Failed to unlike", Toast.LENGTH_SHORT).show()
                     }
             }
         }
     }
 
     private fun loadReviews() {
-        if (bookDocumentId.isNotEmpty()) {
-            ReviewsDatabase.getReviewsByBookId(bookDocumentId)
-                .addOnSuccessListener { querySnapshot ->
-                    val reviews = mutableListOf<ReviewModel>()
-                    val userIds = mutableSetOf<String>()
-
-                    // Collect all reviews and userIds
-                    for (document in querySnapshot.documents) {
-                        try {
-                            val review = ReviewModel.fromMap(document.id, document.data!!)
-                            reviews.add(review)
-                            userIds.add(review.userId)
-                        } catch (e: Exception) {
-                            // Handle parsing error
-                        }
-                    }
-
-                    // Update the rating bar with user's existing rating
-                    val userRating = findUserRating(reviews)
-                    viewBookVB.rateRb.rating = userRating
-
-                    // Fetch user data for all reviews
-                    fetchUserDataForReviews(reviews, userIds)
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to load reviews", Toast.LENGTH_SHORT).show()
-                    viewBookVB.reviewRv.visibility = android.view.View.GONE
-                    viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
-                    hideLoading()
-                }
-        } else {
-            viewBookVB.reviewRv.visibility = android.view.View.GONE
-            viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
-            hideLoading()
-        }
-    }
-
-    private fun fetchUserDataForReviews(reviews: List<ReviewModel>, userIds: Set<String>) {
-        val userDataMap = mutableMapOf<String, Pair<String, String?>>()
-        var completedFetches = 0
-
-        if (userIds.isEmpty()) {
-            // No users to fetch, update UI immediately
-            updateReviewsUI(reviews, userDataMap)
+        if (bookDocId.isEmpty()) {
+            showNoReviews()
             return
         }
 
+        ReviewsDatabase.getReviewsByBookId(bookDocId)
+            .addOnSuccessListener { snapshot ->
+                val loadedReviews = mutableListOf<ReviewModel>()
+                val userIds = mutableSetOf<String>()
+
+                // Get all reviews for this book
+                for (doc in snapshot.documents) {
+                    try {
+                        val review = ReviewModel.fromMap(doc.id, doc.data!!)
+                        loadedReviews.add(review)
+                        userIds.add(review.userId) // Collect user IDs for fetching profile data
+                    } catch (e: Exception) {
+                        // Skip bad data
+                    }
+                }
+
+                // Update user's rating display
+                val userRating = loadedReviews.firstOrNull { it.userId == userId }?.rating ?: 0f
+                binding.rateRb.rating = userRating
+
+                // Fetch user profile pictures and names
+                fetchUserData(loadedReviews, userIds)
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to load reviews", Toast.LENGTH_SHORT).show()
+                showNoReviews()
+            }
+    }
+
+    private fun fetchUserData(reviews: List<ReviewModel>, userIds: Set<String>) {
+        val userData = mutableMapOf<String, Pair<String, String?>>()
+        var fetchedCount = 0
+
+        if (userIds.isEmpty()) {
+            updateReviewsUI(reviews, userData)
+            return
+        }
+
+        // Fetch each user's profile data
         userIds.forEach { userId ->
             UsersDatabase.getById(userId)
-                .addOnSuccessListener { documentSnapshot ->
-                    if (documentSnapshot.exists()) {
-                        val userModel = UserModel.fromMap(
-                            documentSnapshot.id,
-                            documentSnapshot.data ?: emptyMap()
-                        )
-                        userDataMap[userId] = Pair(
-                            userModel.username ?: "Anonymous",
-                            userModel.profilePicture
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        val user = UserModel.fromMap(doc.id, doc.data ?: emptyMap())
+                        userData[userId] = Pair(
+                            user.username ?: "Anonymous",
+                            user.profilePicture
                         )
                     } else {
-                        userDataMap[userId] = Pair("Anonymous", null)
+                        userData[userId] = Pair("Anonymous", null)
                     }
 
-                    completedFetches++
-                    if (completedFetches == userIds.size) {
-                        updateReviewsUI(reviews, userDataMap)
+                    fetchedCount++
+                    if (fetchedCount == userIds.size) {
+                        updateReviewsUI(reviews, userData)
                     }
                 }
                 .addOnFailureListener {
-                    userDataMap[userId] = Pair("Anonymous", null)
-                    completedFetches++
-                    if (completedFetches == userIds.size) {
-                        updateReviewsUI(reviews, userDataMap)
+                    userData[userId] = Pair("Anonymous", null)
+                    fetchedCount++
+                    if (fetchedCount == userIds.size) {
+                        updateReviewsUI(reviews, userData)
                     }
                 }
         }
     }
 
-    private fun updateReviewsUI(reviews: List<ReviewModel>, userDataMap: Map<String, Pair<String, String?>>) {
-        // Create new reviews with user data populated
+    private fun updateReviewsUI(reviews: List<ReviewModel>, userData: Map<String, Pair<String, String?>>) {
+        // Add user profile data to reviews
         val reviewsWithUserData = reviews.map { review ->
-            val (username, profilePicture) = userDataMap[review.userId] ?: Pair("Anonymous", null)
+            val (username, profilePic) = userData[review.userId] ?: Pair("Anonymous", null)
             review.copy(
                 username = username,
-                userProfilePicture = profilePicture
+                userProfilePicture = profilePic
             )
         }
 
-        // Update the adapter
-        reviewList.clear()
-        reviewList.addAll(reviewsWithUserData)
+        // Update the list
+        this.reviews.clear()
+        this.reviews.addAll(reviewsWithUserData)
         reviewAdapter.notifyDataSetChanged()
 
-        avgRating()
+        // Update average rating display
+        calculateAvgRating()
 
         // Show/hide empty state
         if (reviewAdapter.hasReviewsWithComments()) {
-            viewBookVB.reviewRv.visibility = android.view.View.VISIBLE
-            viewBookVB.noReviewsTv.visibility = android.view.View.GONE
+            binding.reviewRv.visibility = android.view.View.VISIBLE
+            binding.noReviewsTv.visibility = android.view.View.GONE
         } else {
-            viewBookVB.reviewRv.visibility = android.view.View.GONE
-            viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
+            showNoReviews()
         }
 
-        // Hide loading once reviews are loaded
         hideLoading()
     }
 
-    private fun handleRatingChange(newRating: Float) {
-        val existingReview = reviewList.firstOrNull { it.userId == currentUserDocumentId }
+    private fun showNoReviews() {
+        binding.reviewRv.visibility = android.view.View.GONE
+        binding.noReviewsTv.visibility = android.view.View.VISIBLE
+        hideLoading()
+    }
 
-        if (existingReview != null) {
-            updateExistingReviewRating(existingReview, newRating)
+    private fun handleRating(newRating: Float) {
+        val existing = reviews.firstOrNull { it.userId == userId }
+
+        if (existing != null) {
+            updateRating(existing, newRating)
         } else {
-            createRatingOnlyReview(newRating)
+            createRating(newRating)
         }
     }
 
-    private fun createRatingOnlyReview(rating: Float) {
+    private fun createRating(rating: Float) {
         val review = ReviewModel(
-            bookId = bookDocumentId,
-            userId = currentUserDocumentId,
+            bookId = bookDocId,
+            userId = userId,
             rating = rating,
-            comment = "",
+            comment = "", // Empty comment = rating only
             likes = 0,
             likedBy = emptyList(),
             createdAt = com.google.firebase.Timestamp.now(),
             authorLikedBook = isLiked
         )
 
-        ensureBookExists { bookCreated ->
-            if (bookCreated) {
+        // Make sure book exists in database
+        ensureBookExists { created ->
+            if (created) {
                 ReviewsDatabase.create(review)
-                    .addOnSuccessListener { documentReference ->
-                        val reviewId = documentReference.id
-                        updateBookReviews(reviewId)
+                    .addOnSuccessListener { docRef ->
+                        val reviewId = docRef.id
+                        addReviewToBook(reviewId)
                         Toast.makeText(this, "Rating submitted!", Toast.LENGTH_SHORT).show()
                         loadReviews()
                     }
                     .addOnFailureListener { e ->
                         Toast.makeText(this, "Failed to submit rating", Toast.LENGTH_SHORT).show()
-                        viewBookVB.rateRb.rating = 0f
+                        binding.rateRb.rating = 0f
                     }
             } else {
-                Toast.makeText(this, "Failed to create book entry", Toast.LENGTH_SHORT).show()
-                viewBookVB.rateRb.rating = 0f
+                Toast.makeText(this, "Error creating book entry", Toast.LENGTH_SHORT).show()
+                binding.rateRb.rating = 0f
             }
         }
     }
 
-    private fun updateExistingReviewRating(existingReview: ReviewModel, newRating: Float) {
-        ReviewsDatabase.update(existingReview.id, mapOf("rating" to newRating))
+    private fun updateRating(existing: ReviewModel, newRating: Float) {
+        ReviewsDatabase.update(existing.id, mapOf("rating" to newRating))
             .addOnSuccessListener {
                 Toast.makeText(this, "Rating updated!", Toast.LENGTH_SHORT).show()
-                val position = reviewList.indexOfFirst { it.id == existingReview.id }
-                if (position != -1) {
-                    val updatedReview = reviewList[position].copy(rating = newRating)
-                    reviewList[position] = updatedReview
-                    reviewAdapter.notifyItemChanged(position)
-                    avgRating()
+                val pos = reviews.indexOfFirst { it.id == existing.id }
+                if (pos != -1) {
+                    reviews[pos] = reviews[pos].copy(rating = newRating)
+                    reviewAdapter.notifyItemChanged(pos)
+                    calculateAvgRating()
                 }
             }
             .addOnFailureListener {
-                Toast.makeText(this, "Failed to update rating", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Failed to update", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun handleReviewLikeClick(review: ReviewModel, position: Int) {
-        val isCurrentlyLiked = review.likedBy.contains(currentUserDocumentId)
-
-        if (isCurrentlyLiked) {
-            // Unlike the review
-            ReviewsDatabase.unlikeReview(review.id, currentUserDocumentId)
+    private fun updateReviewLikeStatus() {
+        // If user has a review, update its "author liked book" status
+        val existing = reviews.firstOrNull { it.userId == userId }
+        if (existing != null) {
+            ReviewsDatabase.update(existing.id, mapOf("authorLikedBook" to isLiked))
                 .addOnSuccessListener {
-                    // Refresh the specific review from Firestore
-                    refreshSingleReview(review.id, position)
+                    val pos = reviews.indexOfFirst { it.id == existing.id }
+                    if (pos != -1) {
+                        reviews[pos] = reviews[pos].copy(authorLikedBook = isLiked)
+                        reviewAdapter.notifyItemChanged(pos)
+                    }
+                }
+            // Don't show error toast for this - it's not critical
+        }
+    }
+
+    private fun handleReviewLike(review: ReviewModel, position: Int) {
+        val alreadyLiked = review.likedBy.contains(userId)
+
+        if (alreadyLiked) {
+            // Unlike this review
+            ReviewsDatabase.unlikeReview(review.id, userId)
+                .addOnSuccessListener {
+                    refreshReview(review.id, position)
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to unlike review", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Failed to unlike", Toast.LENGTH_SHORT).show()
                 }
         } else {
-            // Like the review
-            ReviewsDatabase.likeReview(review.id, currentUserDocumentId)
+            // Like this review
+            ReviewsDatabase.likeReview(review.id, userId)
                 .addOnSuccessListener {
-                    // Refresh the specific review from Firestore
-                    refreshSingleReview(review.id, position)
+                    refreshReview(review.id, position)
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to like review", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Failed to like", Toast.LENGTH_SHORT).show()
                 }
         }
     }
 
-    private fun refreshSingleReview(reviewId: String, position: Int) {
+    private fun refreshReview(reviewId: String, position: Int) {
+        // Get fresh data from server after like/unlike
         ReviewsDatabase.getById(reviewId)
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    val updatedReview = ReviewModel.fromMap(documentSnapshot.id, documentSnapshot.data!!)
-
-                    // Fetch user data for this single review
-                    fetchUserDataForSingleReview(updatedReview, position)
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val updated = ReviewModel.fromMap(doc.id, doc.data!!)
+                    fetchUserForReview(updated, position)
                 }
             }
             .addOnFailureListener {
-                Toast.makeText(this, "Failed to refresh review", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Failed to refresh", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun fetchUserDataForSingleReview(review: ReviewModel, position: Int) {
+    private fun fetchUserForReview(review: ReviewModel, position: Int) {
         UsersDatabase.getById(review.userId)
-            .addOnSuccessListener { documentSnapshot ->
-                val updatedReviewWithUserData = if (documentSnapshot.exists()) {
-                    val userModel = UserModel.fromMap(
-                        documentSnapshot.id,
-                        documentSnapshot.data ?: emptyMap()
-                    )
+            .addOnSuccessListener { doc ->
+                val updatedReview = if (doc.exists()) {
+                    val user = UserModel.fromMap(doc.id, doc.data ?: emptyMap())
                     review.copy(
-                        username = userModel.username ?: "Anonymous",
-                        userProfilePicture = userModel.profilePicture
+                        username = user.username ?: "Anonymous",
+                        userProfilePicture = user.profilePicture
                     )
                 } else {
                     review.copy(username = "Anonymous")
                 }
 
-                if (position in 0 until reviewList.size) {
-                    reviewList[position] = updatedReviewWithUserData
+                if (position in 0 until reviews.size) {
+                    reviews[position] = updatedReview
                     reviewAdapter.notifyItemChanged(position)
                 }
             }
             .addOnFailureListener {
-                val updatedReviewWithUserData = review.copy(username = "Anonymous")
-                if (position in 0 until reviewList.size) {
-                    reviewList[position] = updatedReviewWithUserData
+                val updatedReview = review.copy(username = "Anonymous")
+                if (position in 0 until reviews.size) {
+                    reviews[position] = updatedReview
                     reviewAdapter.notifyItemChanged(position)
                 }
             }
     }
 
     private fun ensureBookExists(callback: (Boolean) -> Unit) {
-        BooksDatabase.getById(bookDocumentId)
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
+        BooksDatabase.getById(bookDocId)
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
                     callback(true)
                 } else {
-                    createBookInCollection(callback)
+                    createBook(callback)
                 }
             }
             .addOnFailureListener {
-                createBookInCollection(callback)
+                createBook(callback)
             }
     }
 
-    private fun createBookInCollection(callback: (Boolean) -> Unit) {
-        // Store the Google Books ID as string directly
-        val bookModel = BookModel(
-            documentId = bookDocumentId,
-            bookId = googleBooksId, // Store as string
+    private fun createBook(callback: (Boolean) -> Unit) {
+        val book = BookModel(
+            documentId = bookDocId,
+            bookId = googleBooksId,
             likedBy = emptyList(),
             reviews = emptyList()
         )
 
-        BooksDatabase.createWithId(bookDocumentId, bookModel)
+        BooksDatabase.createWithId(bookDocId, book)
             .addOnSuccessListener {
                 callback(true)
             }
@@ -588,68 +593,67 @@ class ViewBookActivity : AppCompatActivity() {
             }
     }
 
-    private fun updateBookReviews(reviewId: String) {
-        val updates = mapOf(
+    private fun addReviewToBook(reviewId: String) {
+        BooksDatabase.update(bookDocId, mapOf(
             "reviews" to com.google.firebase.firestore.FieldValue.arrayUnion(reviewId)
-        )
-        BooksDatabase.update(bookDocumentId, updates)
+        ))
     }
 
-    private fun findUserRating(reviews: List<ReviewModel>): Float {
-        return reviews
-            .firstOrNull { it.userId == currentUserDocumentId }
-            ?.rating ?: 0f
+    private fun findUserRating(): Float {
+        return reviews.firstOrNull { it.userId == userId }?.rating ?: 0f
     }
 
-    private fun avgRating() {
-        if (reviewList.isEmpty()) {
-            viewBookVB.avgRatingRb.rating = 0f
-            viewBookVB.numberOfRatingsTv.text = "0 ratings"
+    private fun calculateAvgRating() {
+        if (reviews.isEmpty()) {
+            binding.avgRatingRb.rating = 0f
+            binding.numberOfRatingsTv.text = "0 ratings"
             return
         }
 
-        // Filter out reviews with 0 rating
-        val ratedReviews = reviewList.filter { it.rating > 0 }
+        // Only count reviews with actual ratings (not 0)
+        val rated = reviews.filter { it.rating > 0 }
 
-        if (ratedReviews.isEmpty()) {
-            viewBookVB.avgRatingRb.rating = 0f
-            viewBookVB.numberOfRatingsTv.text = "0 ratings"
+        if (rated.isEmpty()) {
+            binding.avgRatingRb.rating = 0f
+            binding.numberOfRatingsTv.text = "0 ratings"
             return
         }
 
-        val totalRating = ratedReviews.sumOf { it.rating.toDouble() }
-        val averageRating = totalRating / ratedReviews.size
+        val total = rated.sumOf { it.rating.toDouble() }
+        val average = total / rated.size
 
-        viewBookVB.avgRatingRb.rating = averageRating.toFloat()
-        viewBookVB.numberOfRatingsTv.text = ratedReviews.size.toString()
+        binding.avgRatingRb.rating = average.toFloat()
+        binding.numberOfRatingsTv.text = rated.size.toString()
     }
 
     private fun showAddToListDialog() {
         AddToListDialog(
             context = this,
-            bookId = bookDocumentId,
+            bookId = bookDocId,
             onNewListRequested = {
-                showNewListDialog()
+                showCreateListDialog()
             }
         ).show()
     }
 
-    private fun showNewListDialog() {
+    private fun showCreateListDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setCancelable(true)
         val binding = NewListLayoutBinding.inflate(layoutInflater)
         dialog.setContentView(binding.root)
 
-        val heightInPixels = (200 * resources.displayMetrics.density).toInt()
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            (200 * resources.displayMetrics.density).toInt()
+        )
 
         binding.saveNewListBtn.setOnClickListener {
-            val listName = binding.newListNameEt.text.toString().trim()
-            if (listName.isNotEmpty()) {
-                createNewList(listName, dialog)
+            val name = binding.newListNameEt.text.toString().trim()
+            if (name.isNotEmpty()) {
+                createList(name, dialog)
             } else {
-                Toast.makeText(this, "Please enter a list name", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter a list name", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -660,47 +664,43 @@ class ViewBookActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun createNewList(listName: String, dialog: Dialog) {
-        val currentUserId = auth.currentUser?.uid ?: ""
-        if (currentUserId.isEmpty()) {
-            Toast.makeText(this, "Please log in to create lists", Toast.LENGTH_SHORT).show()
+    private fun createList(name: String, dialog: Dialog) {
+        val currentId = auth.currentUser?.uid ?: ""
+        if (currentId.isEmpty()) {
+            Toast.makeText(this, "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
 
-        ListsDatabase.createList(listName, currentUserId)
+        ListsDatabase.createList(name, currentId)
             .addOnSuccessListener {
-                Toast.makeText(this, "List '$listName' created successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "List '$name' created!", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
-                // Optionally show the add to list dialog again to add the book
-                showAddToListDialog()
+                showAddToListDialog() // Go back to add to list dialog
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to create list: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun refreshReviewsData() {
-        if (bookDocumentId.isNotEmpty()) {
-            ReviewsDatabase.getReviewsByBookId(bookDocumentId)
-                .addOnSuccessListener { querySnapshot ->
-                    val reviews = mutableListOf<ReviewModel>()
+    private fun refreshReviews() {
+        if (bookDocId.isNotEmpty()) {
+            ReviewsDatabase.getReviewsByBookId(bookDocId)
+                .addOnSuccessListener { snapshot ->
+                    val loadedReviews = mutableListOf<ReviewModel>()
                     val userIds = mutableSetOf<String>()
 
-                    for (document in querySnapshot.documents) {
+                    for (doc in snapshot.documents) {
                         try {
-                            val review = ReviewModel.fromMap(document.id, document.data!!)
-                            reviews.add(review)
+                            val review = ReviewModel.fromMap(doc.id, doc.data!!)
+                            loadedReviews.add(review)
                             userIds.add(review.userId)
                         } catch (e: Exception) {
-                            // Handle parsing error
+                            // Skip bad data
                         }
                     }
 
-                    fetchUserDataForReviews(reviews, userIds)
+                    fetchUserData(loadedReviews, userIds)
                 }
         }
     }
-
-
-
 }
