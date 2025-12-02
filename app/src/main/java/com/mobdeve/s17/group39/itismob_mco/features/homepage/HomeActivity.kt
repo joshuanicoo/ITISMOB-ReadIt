@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.widget.SearchView
+import androidx.appcompat.widget.SearchView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +27,9 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.util.Locale
 import kotlin.collections.HashSet
+import android.widget.AutoCompleteTextView
+import android.view.View
+import android.graphics.Color
 
 @ExperimentalGetImage
 class HomeActivity : AppCompatActivity() {
@@ -79,6 +82,17 @@ class HomeActivity : AppCompatActivity() {
         this.binding.bookSv.setOnClickListener { view ->
             binding.bookSv.onActionViewExpanded()
         }
+
+        // Remove underlines
+        val searchPlate = binding.bookSv.findViewById<View>(
+            androidx.appcompat.R.id.search_plate
+        )
+        searchPlate.setBackgroundColor(Color.TRANSPARENT)
+        val searchAutoComplete = binding.bookSv.findViewById<AutoCompleteTextView>(
+            androidx.appcompat.R.id.search_src_text
+        )
+        searchAutoComplete.background = null
+
 
         this.binding.bookSv.setOnQueryTextListener(object: SearchView.OnQueryTextListener{
             override fun onQueryTextSubmit(query: String?): Boolean {
