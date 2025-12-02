@@ -33,7 +33,7 @@
         android:id="@+id/scanInstructionsTv"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="100dp"
+        android:layout_marginBottom="120dp"
         android:text="Align ISBN barcode within the frame"
         android:textColor="@color/white"
         android:textSize="16sp"
@@ -41,6 +41,22 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/uploadImageBtn"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_margin="20dp"
+        android:background="@drawable/circle_button_with_stroke"
+        android:contentDescription="Upload Image"
+        android:padding="16dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_gallery"
+        android:tint="@color/white"
+        app:layout_constraintBottom_toTopOf="@id/scanInstructionsTv"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/cancelScanBtn"

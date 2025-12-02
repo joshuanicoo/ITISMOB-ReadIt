@@ -19,7 +19,7 @@ class HomeAdapter(private var data: List<Volume>): androidx.recyclerview.widget.
     private var onItemClickListener: ((Volume, Int) -> Unit)? = null
     private val googleBooksApi: GoogleBooksApiInterface = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
 
-    // Expose current data for filtering - ADD THIS PROPERTY
+    // Expose current data for filtering
     val currentData: List<Volume>
         get() = data
 
@@ -27,8 +27,9 @@ class HomeAdapter(private var data: List<Volume>): androidx.recyclerview.widget.
         onItemClickListener = listener
     }
 
-    fun updateData(newData : List<Volume>) {
-        this.data = newData
+    fun updateData(newData: List<Volume>) {
+        // Handle null case by converting to empty list
+        this.data = newData ?: emptyList()
         notifyDataSetChanged()
     }
 
@@ -37,20 +38,22 @@ class HomeAdapter(private var data: List<Volume>): androidx.recyclerview.widget.
             LayoutInflater.from(parent.context),
             parent,
             false)
-        val viewHolder = HomeViewHolder(itemViewBinding)
-
-        return viewHolder
+        return HomeViewHolder(itemViewBinding)
     }
 
     override fun onBindViewHolder(holder: HomeViewHolder, position: Int) {
-        holder.bindData(data[position])
-        holder.itemView.startAnimation(AnimationUtils.loadAnimation(holder.itemView.getContext(), R.anim.anim_one))
+        // Check if position is valid
+        if (position < data.size) {
+            val volume = data[position]
+            holder.bindData(volume)
+            holder.itemView.startAnimation(AnimationUtils.loadAnimation(holder.itemView.context, R.anim.anim_one))
 
-        holder.itemView.setOnClickListener {
-            if (onItemClickListener != null) {
-                onItemClickListener?.invoke(data[position], position)
-            } else {
-                openBookDetails(holder, data[position], position)
+            holder.itemView.setOnClickListener {
+                if (onItemClickListener != null) {
+                    onItemClickListener?.invoke(volume, position)
+                } else {
+                    openBookDetails(holder, volume, position)
+                }
             }
         }
     }
@@ -66,25 +69,24 @@ class HomeAdapter(private var data: List<Volume>): androidx.recyclerview.widget.
                         val categories = processCategories(volumeInfo?.get("categories"))
                         val genreString = categories.joinToString(", ")
 
-                        holder.itemView.context.startActivity(
-                            Intent(holder.itemView.context, ViewBookActivity::class.java).apply {
-                                putExtra(ViewBookActivity.ID_KEY, volume.id)
-                                putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title)
-                                putExtra(ViewBookActivity.AUTHOR_KEY, volume.volumeInfo.authors?.joinToString(", "))
-                                putExtra(ViewBookActivity.DESCRIPTION_KEY, volume.volumeInfo.description)
-                                putExtra(ViewBookActivity.AVG_RATING_KEY, volume.volumeInfo.averageRating)
-                                putExtra(ViewBookActivity.RATING_COUNT_KEY, volume.volumeInfo.ratingsCount)
-                                putExtra(ViewBookActivity.GENRE_KEY, genreString)
-                                putExtra(ViewBookActivity.POSITION_KEY, position)
-                                putExtra(ViewBookActivity.IMAGE_URL, holder.getEnhancedImageUrl(volume))
-                            }
-                        )
+                        val intent = Intent(holder.itemView.context, ViewBookActivity::class.java)
+                        intent.putExtra(ViewBookActivity.ID_KEY, volume.id)
+                        intent.putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title ?: "")
+                        intent.putExtra(ViewBookActivity.AUTHOR_KEY, volume.volumeInfo.authors?.joinToString(", ") ?: "")
+                        intent.putExtra(ViewBookActivity.DESCRIPTION_KEY, volume.volumeInfo.description ?: "")
+                        intent.putExtra(ViewBookActivity.AVG_RATING_KEY, volume.volumeInfo.averageRating ?: 0.0)
+                        intent.putExtra(ViewBookActivity.RATING_COUNT_KEY, volume.volumeInfo.ratingsCount ?: 0)
+                        intent.putExtra(ViewBookActivity.GENRE_KEY, genreString)
+                        intent.putExtra(ViewBookActivity.POSITION_KEY, position)
+                        intent.putExtra(ViewBookActivity.IMAGE_URL, holder.getEnhancedImageUrl(volume))
+
+                        holder.itemView.context.startActivity(intent)
                     }
                 }
             }
 
             override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                // Silent fail
+                // Silent fail - user can try again
             }
         })
     }
