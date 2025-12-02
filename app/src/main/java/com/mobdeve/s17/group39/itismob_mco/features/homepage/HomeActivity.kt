@@ -25,7 +25,6 @@ import com.mobdeve.s17.group39.itismob_mco.utils.Volume
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.util.Locale
 import kotlin.collections.HashSet
 import android.widget.AutoCompleteTextView
 import android.view.View
@@ -87,16 +86,21 @@ class HomeActivity : AppCompatActivity() {
         )
         searchAutoComplete.background = null
 
-
         this.binding.bookSv.setOnQueryTextListener(object: SearchView.OnQueryTextListener{
             override fun onQueryTextSubmit(query: String?): Boolean {
-                val searchText = query?.lowercase(Locale.getDefault()) ?: ""
+                val searchText = query?.trim() ?: ""
                 if (searchText.isNotEmpty()) {
                     handler.removeCallbacksAndMessages(null)
                     currentQuery = searchText
                     currentGenre = null
                     selectedGenrePosition = 0
                     genreAdapter.setSelectedPosition(0)
+
+                    // Show toast if ISBN is detected
+                    if (isLikelyISBN(searchText)) {
+                        Toast.makeText(this@HomeActivity, "Searching by ISBN...", Toast.LENGTH_SHORT).show()
+                    }
+
                     searchBooks(searchText, 40, "books")
                 } else {
                     currentQuery = ""
@@ -106,7 +110,7 @@ class HomeActivity : AppCompatActivity() {
             }
 
             override fun onQueryTextChange(query: String?): Boolean {
-                val searchText = query?.lowercase(Locale.getDefault()) ?: ""
+                val searchText = query?.trim() ?: ""
                 handler.removeCallbacksAndMessages(null)
                 if (searchText.isNotEmpty()) {
                     handler.postDelayed({
@@ -123,6 +127,26 @@ class HomeActivity : AppCompatActivity() {
                 return true
             }
         })
+    }
+
+    private fun isLikelyISBN(query: String): Boolean {
+        // Remove common separators
+        val cleanQuery = query.replace(" ", "").replace("-", "").replace(".", "")
+
+        // Check for ISBN-10 (10 digits, possibly ending with X)
+        val isbn10Pattern = Regex("^\\d{9}[\\dX]\$", RegexOption.IGNORE_CASE)
+
+        // Check for ISBN-13 (13 digits)
+        val isbn13Pattern = Regex("^\\d{13}\$")
+
+        // Check for ISBN with prefix
+        val isbnWithPrefixPattern = Regex("^(isbn:|ISBN:)?\\s*\\d{9}[\\dX]\$", RegexOption.IGNORE_CASE)
+        val isbn13WithPrefixPattern = Regex("^(isbn:|ISBN:)?\\s*\\d{13}\$", RegexOption.IGNORE_CASE)
+
+        return isbn10Pattern.matches(cleanQuery) ||
+                isbn13Pattern.matches(cleanQuery) ||
+                isbnWithPrefixPattern.matches(cleanQuery) ||
+                isbn13WithPrefixPattern.matches(cleanQuery)
     }
 
     private fun setupRecyclerView() {
@@ -172,7 +196,7 @@ class HomeActivity : AppCompatActivity() {
 
     private fun hasMatchingGenre(volume: Volume, genre: String): Boolean {
         return volume.volumeInfo.categories?.any { category ->
-            category.split("/", ",").any {
+            category.split("/", ",").any { it ->
                 it.trim().equals(genre, ignoreCase = true)
             }
         } ?: false
@@ -257,90 +281,182 @@ class HomeActivity : AppCompatActivity() {
         })
     }
 
-    private fun searchBooks(query : String, size: Int, printType: String){
+    private fun searchBooks(query: String, size: Int, printType: String) {
         showLoading()
-        val call = apiInterface.searchBooks(query, size, printType)
-        call.enqueue(object : Callback<GoogleBooksResponse> {
-            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
-                if (response.isSuccessful && response.body() != null) {
-                    data = response.body()!!
-                    val items = data.items
-                    if (items != null) {
-                        allBooks = items
-                        val genres = extractGenresFromBooks(items)
-                        genreAdapter.updateGenres(genres)
-                        if (currentGenre != null && isFilteringFromSearch) {
-                            filterBooksByGenre(currentGenre!!)
-                        } else {
-                            adapter.updateData(items)
-                        }
-                    } else {
-                        allBooks = emptyList()
-                        adapter.updateData(emptyList())
-                        genreAdapter.updateGenres(listOf("All"))
-                        Toast.makeText(this@HomeActivity, "No books found for '$query'", Toast.LENGTH_SHORT).show()
-                    }
 
-                    hideLoading()
-                } else {
+        // Check if the query looks like an ISBN
+        if (isLikelyISBN(query)) {
+            // Use dedicated ISBN search
+            val cleanISBN = query.replace(" ", "").replace("-", "").replace(".", "")
+                .replace("isbn:", "", ignoreCase = true)
+                .replace("ISBN:", "", ignoreCase = true)
+
+            searchByISBNDedicated(cleanISBN)
+        } else {
+            // Use regular search
+            val call = apiInterface.searchBooks(query, size, printType)
+            call.enqueue(object : Callback<GoogleBooksResponse> {
+                override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                    if (response.isSuccessful && response.body() != null) {
+                        data = response.body()!!
+                        val items = data.items
+                        if (items != null) {
+                            allBooks = items
+                            val genres = extractGenresFromBooks(items)
+                            genreAdapter.updateGenres(genres)
+                            if (currentGenre != null && isFilteringFromSearch) {
+                                filterBooksByGenre(currentGenre!!)
+                            } else {
+                                adapter.updateData(items)
+                            }
+                        } else {
+                            allBooks = emptyList()
+                            adapter.updateData(emptyList())
+                            genreAdapter.updateGenres(listOf("All"))
+                            Toast.makeText(this@HomeActivity, "No books found for '$query'", Toast.LENGTH_SHORT).show()
+                        }
+                        hideLoading()
+                    } else {
+                        hideLoading()
+                        Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                    t.printStackTrace()
                     hideLoading()
                     Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
                 }
-            }
-            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                t.printStackTrace()
-                hideLoading()
-                Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
-            }
-        })
+            })
+        }
     }
 
-    private fun searchByISBN(isbn: String) {
-        showLoading()
-        val call = apiInterface.searchBooks(isbn, 1, "books")
+    private fun searchByISBNDedicated(isbn: String) {
+        Log.d("ISBN_SEARCH", "Searching by dedicated ISBN: $isbn")
+
+        // First try the dedicated ISBN endpoint
+        val call = apiInterface.getBookByISBN(isbn, 1, "books")
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
-                        data = body
-                        Log.d("ISBN_SEARCH", "Response received. Total items: ${body.totalItems}")
-                        Log.d("ISBN_SEARCH", "Items list: ${body.items}")
+                        Log.d("ISBN_SEARCH", "Dedicated ISBN search response. Total items: ${body.totalItems}")
+
                         val items = body.items
                         if (items != null && items.isNotEmpty()) {
                             allBooks = items
                             val genres = extractGenresFromBooks(items)
                             genreAdapter.updateGenres(genres)
-                            val volume = items[0]
-                            Log.d("ISBN_SEARCH", "Found book via search: ${volume.volumeInfo.title}")
-                            openBookDetailsDirectly(volume)
+                            adapter.updateData(items)
                             hideLoading()
                             return
                         }
-                        hideLoading()
-                        if (body.totalItems > 0) {
-                            Toast.makeText(this@HomeActivity, "Book found but data unavailable. Try searching by title.", Toast.LENGTH_LONG).show()
-                        } else {
-                            adapter.updateData(emptyList())
-                            val genres = extractGenresFromBooks(emptyList())
-                            genreAdapter.updateGenres(genres)
-                            Toast.makeText(this@HomeActivity, "No book found with ISBN: $scannedISBN", Toast.LENGTH_LONG).show()
-                        }
+
+                        // If dedicated search fails, fall back to general search with ISBN format
+                        Log.d("ISBN_SEARCH", "Dedicated search returned no items, trying fallback")
+                        searchBooksWithFallbackFormats(isbn)
                     } else {
                         hideLoading()
-                        Toast.makeText(this@HomeActivity, "Invalid response from server", Toast.LENGTH_SHORT).show()
+                        searchBooksWithFallbackFormats(isbn)
                     }
                 } else {
                     hideLoading()
-                    Log.d("ISBN_SEARCH", "Response not successful: ${response.code()}")
-                    Toast.makeText(this@HomeActivity, "Failed to load books. Error: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    searchBooksWithFallbackFormats(isbn)
                 }
             }
+
             override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                t.printStackTrace()
                 hideLoading()
-                Log.d("ISBN_SEARCH", "Network failure: ${t.message}")
-                Toast.makeText(this@HomeActivity, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                Log.d("ISBN_SEARCH", "Dedicated ISBN search failed: ${t.message}")
+                searchBooksWithFallbackFormats(isbn)
+            }
+        })
+    }
+
+    private fun searchBooksWithFallbackFormats(isbn: String) {
+        val formats = mutableListOf<String>()
+
+        // Add different ISBN formats
+        formats.add("isbn:$isbn")
+        formats.add("ISBN:$isbn")
+
+        // Try conversion if applicable
+        if (isbn.length == 10) {
+            val isbn13 = convertISBN10ToISBN13(isbn)
+            if (isbn13 != null) {
+                formats.add("isbn:$isbn13")
+            }
+        } else if (isbn.length == 13 && isbn.startsWith("978")) {
+            val isbn10 = convertISBN13ToISBN10(isbn)
+            if (isbn10 != null) {
+                formats.add("isbn:$isbn10")
+            }
+        }
+
+        // Also try direct search
+        formats.add(isbn)
+
+        Log.d("ISBN_SEARCH", "Trying fallback formats: $formats")
+        tryISBNFormatWithFallback(formats, 0)
+    }
+
+    private fun tryISBNFormatWithFallback(formats: List<String>, index: Int) {
+        if (index >= formats.size) {
+            adapter.updateData(emptyList())
+            val genres = extractGenresFromBooks(emptyList())
+            genreAdapter.updateGenres(genres)
+            Toast.makeText(this@HomeActivity, "No book found with ISBN: $scannedISBN", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val currentFormat = formats[index]
+        Log.d("ISBN_SEARCH", "Trying format $index: $currentFormat")
+
+        showLoading()
+        val call = apiInterface.searchBooks(currentFormat, 1, "books")
+        call.enqueue(object : Callback<GoogleBooksResponse> {
+            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        Log.d("ISBN_SEARCH", "Format $currentFormat: totalItems = ${body.totalItems}")
+
+                        val items = body.items
+                        if (items != null && items.isNotEmpty()) {
+                            allBooks = items
+                            adapter.updateData(items)
+
+                            val genres = extractGenresFromBooks(items)
+                            genreAdapter.updateGenres(genres)
+
+                            val volume = items[0]
+                            Log.d("ISBN_SEARCH", "Found book with format $currentFormat: ${volume.volumeInfo.title}")
+                            openBookDetailsDirectly(volume)
+                            hideLoading()
+                        } else if (body.totalItems > 0) {
+                            Log.d("ISBN_SEARCH", "Format $currentFormat has totalItems > 0 but no items, trying next format")
+                            hideLoading()
+                            tryISBNFormatWithFallback(formats, index + 1)
+                        } else {
+                            Log.d("ISBN_SEARCH", "Format $currentFormat returned 0 results")
+                            hideLoading()
+                            tryISBNFormatWithFallback(formats, index + 1)
+                        }
+                    } else {
+                        hideLoading()
+                        tryISBNFormatWithFallback(formats, index + 1)
+                    }
+                } else {
+                    hideLoading()
+                    tryISBNFormatWithFallback(formats, index + 1)
+                }
+            }
+
+            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                hideLoading()
+                Log.d("ISBN_SEARCH", "Format $currentFormat failed: ${t.message}")
+                tryISBNFormatWithFallback(formats, index + 1)
             }
         })
     }
@@ -407,6 +523,7 @@ class HomeActivity : AppCompatActivity() {
             }
 
             enhancedUrl.contains("gstatic.com") -> {
+                // No changes needed for gstatic.com links
             }
         }
 
@@ -437,6 +554,7 @@ class HomeActivity : AppCompatActivity() {
     private fun searchBookByIsbn(isbn: String) {
         if (isbn.isNotEmpty()) {
             scannedISBN = isbn
+            Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
             val cleanISBN = isbn.replace(" ", "").replace("-", "")
             tryMultipleISBNFormats(cleanISBN)
         } else {
@@ -475,66 +593,6 @@ class HomeActivity : AppCompatActivity() {
         if (isbnFormats.isNotEmpty()) {
             tryISBNFormatWithFallback(isbnFormats, 0)
         }
-    }
-
-    private fun tryISBNFormatWithFallback(formats: List<String>, index: Int) {
-        if (index >= formats.size) {
-            adapter.updateData(emptyList())
-            val genres = extractGenresFromBooks(emptyList())
-            genreAdapter.updateGenres(genres)
-            Toast.makeText(this@HomeActivity, "No book found with ISBN: $scannedISBN", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        val currentFormat = formats[index]
-        Log.d("ISBN_SEARCH", "Trying format $index: $currentFormat")
-
-        showLoading()
-        val call = apiInterface.searchBooks(currentFormat, 1, "books")
-        call.enqueue(object : Callback<GoogleBooksResponse> {
-            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body != null) {
-                        Log.d("ISBN_SEARCH", "Format $currentFormat: totalItems = ${body.totalItems}")
-
-                        val items = body.items
-                        if (items != null && items.isNotEmpty()) {
-                            allBooks = items
-                            adapter.updateData(items)
-
-                            val genres = extractGenresFromBooks(items)
-                            genreAdapter.updateGenres(genres)
-
-                            val volume = items[0]
-                            Log.d("ISBN_SEARCH", "Found book with format $currentFormat: ${volume.volumeInfo.title}")
-                            openBookDetailsDirectly(volume)
-                            hideLoading()
-                        } else if (body.totalItems > 0) {
-                            Log.d("ISBN_SEARCH", "Format $currentFormat has totalItems > 0 but no items, trying next format")
-                            hideLoading()
-                            tryISBNFormatWithFallback(formats, index + 1)
-                        } else {
-                            Log.d("ISBN_SEARCH", "Format $currentFormat returned 0 results")
-                            hideLoading()
-                            tryISBNFormatWithFallback(formats, index + 1)
-                        }
-                    } else {
-                        hideLoading()
-                        tryISBNFormatWithFallback(formats, index + 1)
-                    }
-                } else {
-                    hideLoading()
-                    tryISBNFormatWithFallback(formats, index + 1)
-                }
-            }
-
-            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                hideLoading()
-                Log.d("ISBN_SEARCH", "Format $currentFormat failed: ${t.message}")
-                tryISBNFormatWithFallback(formats, index + 1)
-            }
-        })
     }
 
     private fun convertISBN10ToISBN13(isbn10: String): String? {
