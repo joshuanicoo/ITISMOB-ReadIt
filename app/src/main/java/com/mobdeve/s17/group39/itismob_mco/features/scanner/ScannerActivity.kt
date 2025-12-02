@@ -4,6 +4,9 @@ import android.Manifest
 import android.R
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -31,6 +34,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.mobdeve.s17.group39.itismob_mco.databinding.ScannerActivityBinding
+import java.io.InputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -60,6 +64,15 @@ class ScannerActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "Camera permission required for scanning", Toast.LENGTH_LONG).show()
             setupTestMode()
+        }
+    }
+
+    // No permission needed for picking images - uses system picker
+    private val pickImageLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            processImageFromUri(uri)
         }
     }
 
@@ -102,6 +115,10 @@ class ScannerActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         binding.cancelScanBtn.setOnClickListener {
             finish()
+        }
+
+        binding.uploadImageBtn.setOnClickListener {
+            openImagePicker()
         }
     }
 
@@ -294,6 +311,67 @@ class ScannerActivity : AppCompatActivity() {
         }
 
         (binding.root as? ViewGroup)?.addView(inputLayout, layoutParams)
+    }
+
+    // IMAGE UPLOAD FUNCTIONALITY
+    private fun openImagePicker() {
+        pickImageLauncher.launch("image/*")
+    }
+
+    private fun processImageFromUri(uri: Uri) {
+        try {
+            binding.loadingProgressBar.visibility = android.view.View.VISIBLE
+            binding.scanInstructionsTv.text = "Processing image..."
+
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+
+            if (bitmap != null) {
+                processBitmap(bitmap)
+            } else {
+                Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show()
+                binding.loadingProgressBar.visibility = android.view.View.GONE
+                binding.scanInstructionsTv.text = "Align ISBN barcode within the frame"
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error processing image: ${e.message}", Toast.LENGTH_SHORT).show()
+            binding.loadingProgressBar.visibility = android.view.View.GONE
+            binding.scanInstructionsTv.text = "Align ISBN barcode within the frame"
+        }
+    }
+
+    private fun processBitmap(bitmap: Bitmap) {
+        isProcessing = true
+
+        try {
+            val inputImage = InputImage.fromBitmap(bitmap, 0)
+
+            barcodeScanner.process(inputImage)
+                .addOnCompleteListener {
+                    binding.loadingProgressBar.visibility = android.view.View.GONE
+                    binding.scanInstructionsTv.text = "Align ISBN barcode within the frame"
+                    isProcessing = false
+                }
+                .addOnSuccessListener { barcodes ->
+                    for (barcode in barcodes) {
+                        barcode.rawValue?.let { barcodeValue ->
+                            handleScannedBarcode(barcodeValue)
+                            return@addOnSuccessListener
+                        }
+                    }
+                    // No barcode found in image
+                    Toast.makeText(this, "No ISBN barcode found in image", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to scan image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error processing image: ${e.message}", Toast.LENGTH_SHORT).show()
+            binding.loadingProgressBar.visibility = android.view.View.GONE
+            binding.scanInstructionsTv.text = "Align ISBN barcode within the frame"
+            isProcessing = false
+        }
     }
 
     private fun processImageProxy(imageProxy: ImageProxy) {
