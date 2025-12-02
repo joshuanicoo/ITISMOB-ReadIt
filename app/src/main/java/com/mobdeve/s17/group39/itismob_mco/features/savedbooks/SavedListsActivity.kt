@@ -122,7 +122,7 @@ class SavedListsActivity : AppCompatActivity() {
         val dialogBinding = DeleteConfirmationDialogBinding.inflate(layoutInflater)
         dialog.setContentView(dialogBinding.root)
 
-        // Set dialog dimensions (similar to your new list dialog)
+        // Set dialog dimensions
         val heightInPixels = (220 * resources.displayMetrics.density).toInt()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
