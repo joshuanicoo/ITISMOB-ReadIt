@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
+import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
 import com.mobdeve.s17.group39.itismob_mco.databinding.DeleteConfirmationDialogBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.SavedListsLayoutBinding
@@ -99,14 +100,13 @@ class SavedListsActivity : AppCompatActivity() {
             )
             binding.createNewListBtn.isEnabled = false
             binding.createNewListBtn.alpha = 0.5f
-            Toast.makeText(this, "Delete mode: Tap trash icons to remove lists", Toast.LENGTH_SHORT).show()
         } else {
             // Exiting delete mode
             binding.deleteModeBtn.setImageDrawable(
-                ContextCompat.getDrawable(this, android.R.drawable.ic_delete)
+                ContextCompat.getDrawable(this, R.drawable.ic_delete)
             )
             binding.deleteModeBtn.setColorFilter(
-                ContextCompat.getColor(this, android.R.color.holo_green_light)
+                ContextCompat.getColor(this, R.color.main_green)
             )
             binding.createNewListBtn.isEnabled = true
             binding.createNewListBtn.alpha = 1f
@@ -150,8 +150,6 @@ class SavedListsActivity : AppCompatActivity() {
         ListsDatabase.deleteList(listId)
             .addOnSuccessListener {
                 Log.d(TAG, "List deleted successfully: $listId")
-                Toast.makeText(this, "List deleted successfully!", Toast.LENGTH_SHORT).show()
-
                 // If no lists remain, exit delete mode
                 if (adapter.itemCount <= 1) {
                     toggleDeleteMode()
