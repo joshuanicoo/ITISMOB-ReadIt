@@ -112,4 +112,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // HTML tag removal
+    implementation("org.jsoup:jsoup:1.17.2")
 }
