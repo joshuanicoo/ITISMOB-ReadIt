@@ -19,6 +19,7 @@ import com.mobdeve.s17.group39.itismob_mco.models.ListModel
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
 import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksApiInterface
 import com.mobdeve.s17.group39.itismob_mco.utils.ImageUtils
+import com.mobdeve.s17.group39.itismob_mco.utils.LoadingUtils
 import com.mobdeve.s17.group39.itismob_mco.utils.RetrofitInstance
 import com.mobdeve.s17.group39.itismob_mco.utils.Volume
 import kotlinx.coroutines.CoroutineScope
@@ -338,35 +339,41 @@ class BooksInListActivity : AppCompatActivity() {
         return try {
             Jsoup.parse(html).text()
         } catch (e: Exception) {
-            Log.e(TAG, "Error removing HTML tags", e)
             html
         }
     }
 
     private fun displayBooks() {
+        hideLoading()
         binding.booksInListRv.visibility = View.VISIBLE
         binding.emptyStateTv.visibility = View.GONE
+
         val sortedBooks = loadedBooks.sortedBy { it.volumeInfo.title }
         adapter.updateData(sortedBooks)
 
-        Log.d(TAG, "Displaying ${loadedBooks.size} books")
     }
 
     private fun showLoading() {
-        binding.loadingProgressBar.visibility = View.VISIBLE
-        binding.booksInListRv.visibility = View.GONE
-        binding.emptyStateTv.visibility = View.GONE
+        LoadingUtils.showLoading(
+            loadingContainer = binding.loadingContainer,
+            mainContentContainer = binding.mainContentContainer,
+            quoteText = binding.quoteText,
+            quoteAuthor = binding.quoteAuthor
+        )
     }
 
     private fun hideLoading() {
-        binding.loadingProgressBar.visibility = View.GONE
+        LoadingUtils.hideLoading(
+            loadingContainer = binding.loadingContainer,
+            mainContentContainer = binding.mainContentContainer
+        )
     }
 
     private fun showEmptyState() {
-        binding.booksInListRv.visibility = View.GONE
+        hideLoading()
         binding.emptyStateTv.visibility = View.VISIBLE
         binding.emptyStateTv.text = "No books in this list yet"
-        hideLoading()
+        binding.booksInListRv.visibility = View.GONE
     }
 
     private fun setupUI() {

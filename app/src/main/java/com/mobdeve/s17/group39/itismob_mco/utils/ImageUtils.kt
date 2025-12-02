@@ -10,8 +10,8 @@ object ImageUtils {
         return baseUrl
             .replace("http://", "https://")
             .replace("&edge=curl", "")
-            .replace("zoom=1", "zoom=2")
+            .replace("zoom=1", "zoom=1")
             .replace("imgmax=128", "imgmax=512")
-            .replace("&printsec=frontcover", "&printsec=frontcover&img=1&zoom=2")
+            .replace("&printsec=frontcover", "&printsec=frontcover&img=1&zoom=1")
     }
 }
