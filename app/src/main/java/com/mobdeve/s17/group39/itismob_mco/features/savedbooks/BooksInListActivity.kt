@@ -46,8 +46,6 @@ class BooksInListActivity : AppCompatActivity() {
     private lateinit var apiInterface: GoogleBooksApiInterface
     private var listListener: ListenerRegistration? = null
     private var currentListId: String = ""
-
-    // Keep track of loaded books to avoid duplicates
     private val loadedBooks = mutableListOf<Volume>()
     private val gson = Gson()
 
@@ -98,9 +96,7 @@ class BooksInListActivity : AppCompatActivity() {
         binding.listTitleTv.text = list.listName
         val bookCount = list.books.size
         binding.bookCountHeaderTv.text = "$bookCount ${if (bookCount == 1) "book" else "books"}"
-
         Log.d(TAG, "List books: ${list.books}")
-
         if (list.books.isNotEmpty()) {
             loadBooksFromList(list.books)
         } else {
@@ -112,7 +108,7 @@ class BooksInListActivity : AppCompatActivity() {
     private fun loadBooksFromList(bookIds: List<String>) {
         showLoading()
         loadedBooks.clear()
-        adapter.updateData(emptyList()) // Clear previous data
+        adapter.updateData(emptyList())
 
         if (bookIds.isEmpty()) {
             showEmptyState()
@@ -124,15 +120,10 @@ class BooksInListActivity : AppCompatActivity() {
 
         val totalBooks = bookIds.size
         val processedCount = AtomicInteger(0)
-
         bookIds.forEachIndexed { index, bookId ->
             Log.d(TAG, "Loading book $index: ID=$bookId")
-
-            // Clean the book ID to remove "book_" prefix for Google Books API
             val cleanBookId = cleanBookId(bookId)
             Log.d(TAG, "Cleaned book ID for API: $cleanBookId")
-
-            // Load book from Google Books API
             loadBookFromGoogleBooks(cleanBookId, bookId, processedCount, totalBooks)
         }
     }
@@ -143,14 +134,9 @@ class BooksInListActivity : AppCompatActivity() {
             override fun onResponse(call: Call<Map<String, Any>>, response: Response<Map<String, Any>>) {
                 if (response.isSuccessful && response.body() != null) {
                     try {
-                        // Convert Map to Volume object using Gson
                         val jsonString = gson.toJson(response.body())
                         val volume = gson.fromJson(jsonString, Volume::class.java)
-
-                        // Create a new volume with cleaned description
                         val cleanedVolume = createCleanedVolume(volume)
-
-                        // Load reviews and ratings for this book
                         loadBookReviewsAndRatings(originalBookId, cleanedVolume, processedCount, totalBooks)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing book response for ID: $originalBookId", e)
@@ -170,15 +156,10 @@ class BooksInListActivity : AppCompatActivity() {
     }
 
     private fun createCleanedVolume(volume: Volume): Volume {
-        // Create a cleaned volume with HTML removed from description
         val cleanedDescription = volume.volumeInfo.description?.let { removeHtmlTags(it) }
-
-        // Create new VolumeInfo with cleaned description
         val cleanedVolumeInfo = volume.volumeInfo.copy(
             description = cleanedDescription
         )
-
-        // Return new Volume with cleaned VolumeInfo
         return volume.copy(
             volumeInfo = cleanedVolumeInfo
         )
@@ -189,16 +170,10 @@ class BooksInListActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 Log.d(TAG, "Loading reviews for book ID: $bookId")
-
-                // Get Google Books ID (without prefix) for review lookup
                 val googleBooksId = cleanBookId(bookId)
                 Log.d(TAG, "Looking for reviews with Google Books ID: $googleBooksId")
-
-                // Try to get reviews by Google Books ID
                 val reviewsQuery = ReviewsDatabase.getReviewsByBookId(googleBooksId).await()
                 Log.d(TAG, "Reviews query results: ${reviewsQuery?.documents?.size ?: 0}")
-
-                // If no reviews found with Google Books ID, try with the original ID
                 var reviews = mutableListOf<ReviewModel>()
                 if (reviewsQuery?.documents?.isNotEmpty() == true) {
                     reviews = reviewsQuery.documents.mapNotNull { document ->
@@ -212,7 +187,6 @@ class BooksInListActivity : AppCompatActivity() {
                         }
                     }.toMutableList()
                 } else {
-                    // Try with the original ID (with book_ prefix)
                     Log.d(TAG, "Trying with original ID: $bookId")
                     val reviewsQuery2 = ReviewsDatabase.getReviewsByBookId(bookId).await()
                     if (reviewsQuery2?.documents?.isNotEmpty() == true) {
@@ -239,8 +213,6 @@ class BooksInListActivity : AppCompatActivity() {
                     Log.d(TAG, "  Username: ${firstReview.username}")
                     Log.d(TAG, "  Likes: ${firstReview.likes}")
                 }
-
-                // Calculate average rating from reviews
                 val averageRating = if (reviews.isNotEmpty()) {
                     val avg = reviews.map { it.rating }.average().toFloat()
                     Log.d(TAG, "Calculated average rating: $avg from ${reviews.size} reviews")
@@ -249,24 +221,15 @@ class BooksInListActivity : AppCompatActivity() {
                     Log.d(TAG, "No reviews found for book $bookId")
                     null
                 }
-
-                // Get total reviews count
                 val reviewsCount = reviews.size
-
-                // Create updated volume with review data
-// After calculating averageRating, add this log:
                 Log.d(TAG, "For book ${volume.volumeInfo.title}: " +
                         "Calculated average rating: $averageRating from $reviewsCount reviews")
-
-// Then when creating updated volume:
                 val updatedVolume = if (averageRating != null || reviewsCount > 0) {
                     createVolumeWithReviewData(volume, averageRating?.toDouble(), reviewsCount)
                 } else {
                     Log.d(TAG, "No reviews found for ${volume.volumeInfo.title}, using original volume")
                     volume
                 }
-
-                // Add to loaded books
                 withContext(Dispatchers.Main) {
                     synchronized(loadedBooks) {
                         loadedBooks.add(updatedVolume)
@@ -275,14 +238,10 @@ class BooksInListActivity : AppCompatActivity() {
                     Log.d(TAG, "Successfully loaded book with reviews: ${updatedVolume.volumeInfo.title}, " +
                             "Rating: ${averageRating ?: "N/A"}, Reviews: $reviewsCount")
                 }
-
-                // Check if this book exists in our BooksDatabase (for likes)
                 checkBookInDatabase(bookId, updatedVolume)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading reviews for book ID: $bookId", e)
-
-                // Still add the book even if reviews fail
                 withContext(Dispatchers.Main) {
                     synchronized(loadedBooks) {
                         loadedBooks.add(volume)
@@ -299,7 +258,6 @@ class BooksInListActivity : AppCompatActivity() {
         averageRating: Double?,
         ratingsCount: Int
     ): Volume {
-        // Create new VolumeInfo with review data
         val updatedVolumeInfo = volume.volumeInfo.copy(
             averageRating = averageRating ?: volume.volumeInfo.averageRating,
             ratingsCount = if (ratingsCount > 0) ratingsCount else volume.volumeInfo.ratingsCount
@@ -308,8 +266,6 @@ class BooksInListActivity : AppCompatActivity() {
         Log.d(TAG, "Updating volume: ${volume.volumeInfo.title} " +
                 "Old rating: ${volume.volumeInfo.averageRating}, New rating: $averageRating " +
                 "Old count: ${volume.volumeInfo.ratingsCount}, New count: $ratingsCount")
-
-        // Return new Volume with updated VolumeInfo
         return volume.copy(
             volumeInfo = updatedVolumeInfo
         )
@@ -318,7 +274,6 @@ class BooksInListActivity : AppCompatActivity() {
         // Check if this book exists in our BooksDatabase collection
         BooksDatabase.getById(bookId).addOnSuccessListener { documentSnapshot ->
             if (!documentSnapshot.exists()) {
-                // Book doesn't exist in our database, create it
                 BooksDatabase.createBookWithGoogleId(bookId, cleanBookId(bookId))
                     .addOnSuccessListener {
                         Log.d(TAG, "Created book in database: $bookId")
@@ -356,7 +311,6 @@ class BooksInListActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         } else {
-            // Log each book's rating data before displaying
             loadedBooks.forEach { volume ->
                 Log.d(TAG, "Book: ${volume.volumeInfo.title}, " +
                         "Rating: ${volume.volumeInfo.averageRating}, " +
@@ -365,7 +319,6 @@ class BooksInListActivity : AppCompatActivity() {
 
             displayBooks()
 
-            // Get total books from list for comparison
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val listDoc = ListsDatabase.getDocumentReference(currentListId).get().await()
@@ -389,7 +342,6 @@ class BooksInListActivity : AppCompatActivity() {
     }
 
     private fun cleanBookId(bookId: String): String {
-        // Remove "book_" prefix if present
         return if (bookId.startsWith("book_")) {
             bookId.substring(5) // Remove "book_" (5 characters)
         } else {
@@ -409,8 +361,6 @@ class BooksInListActivity : AppCompatActivity() {
     private fun displayBooks() {
         binding.booksInListRv.visibility = View.VISIBLE
         binding.emptyStateTv.visibility = View.GONE
-
-        // Sort books to maintain consistent order
         val sortedBooks = loadedBooks.sortedBy { it.volumeInfo.title }
         adapter.updateData(sortedBooks)
 
@@ -461,8 +411,6 @@ class BooksInListActivity : AppCompatActivity() {
         val authorsString = volume.volumeInfo.authors?.joinToString(", ")
         val genreString = volume.volumeInfo.categories?.joinToString(", ")
         val imageUrl = ImageUtils.getEnhancedImageUrl(volume)
-
-        // Description is already cleaned in createCleanedVolume()
         val cleanDescription = volume.volumeInfo.description
 
         intent.putExtra(ViewBookActivity.TITLE_KEY, volume.volumeInfo.title)
