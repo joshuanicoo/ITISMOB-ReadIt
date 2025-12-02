@@ -15,8 +15,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
 import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
-import com.mobdeve.s17.group39.itismob_mco.services.BookUserService
 import com.mobdeve.s17.group39.itismob_mco.database.ReviewsDatabase
+import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
+import com.mobdeve.s17.group39.itismob_mco.services.BookUserService
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.ViewBookActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewDialog
@@ -25,6 +26,7 @@ import com.mobdeve.s17.group39.itismob_mco.features.viewbook.list.AddToListDialo
 import com.mobdeve.s17.group39.itismob_mco.features.viewbook.review.ReviewAdapter
 import com.mobdeve.s17.group39.itismob_mco.models.BookModel
 import com.mobdeve.s17.group39.itismob_mco.models.ReviewModel
+import com.mobdeve.s17.group39.itismob_mco.models.UserModel
 import com.mobdeve.s17.group39.itismob_mco.utils.LoadingUtils
 import jp.wasabeef.glide.transformations.BlurTransformation
 import jp.wasabeef.glide.transformations.ColorFilterTransformation
@@ -59,10 +61,6 @@ class ViewBookActivity : AppCompatActivity() {
 
         // Show loading initially
         showLoading()
-        setContentView(viewBookVB.root)
-
-        // Show loading initially
-        showLoading()
 
         auth = FirebaseAuth.getInstance()
         currentUserDocumentId = auth.currentUser?.uid ?: ""
@@ -76,7 +74,6 @@ class ViewBookActivity : AppCompatActivity() {
         val avgRatingDouble = intent.getDoubleExtra(AVG_RATING_KEY, 0.0)
         val ratingCountInt = intent.getIntExtra(RATING_COUNT_KEY, 0)
         val genreString = intent.getStringExtra(GENRE_KEY)
-        val position = intent.getIntExtra(POSITION_KEY, -1)
         val imageUrl = intent.getStringExtra(IMAGE_URL)
 
         // Set basic book info immediately
@@ -277,8 +274,6 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun showReviewDialog() {
-        val currentUser = auth.currentUser
-        val currentUsername = currentUser?.displayName ?: "Anonymous"
         val existingUserRating = findUserRating(reviewList)
 
         ReviewDialog(
@@ -288,7 +283,6 @@ class ViewBookActivity : AppCompatActivity() {
             bookDocumentId = bookDocumentId,
             googleBooksId = googleBooksId,
             currentUserDocumentId = currentUserDocumentId,
-            currentUsername = currentUsername,
             existingUserRating = existingUserRating,
             isBookLiked = isLiked,
             onReviewSubmitted = {
@@ -328,11 +322,14 @@ class ViewBookActivity : AppCompatActivity() {
             ReviewsDatabase.getReviewsByBookId(bookDocumentId)
                 .addOnSuccessListener { querySnapshot ->
                     val reviews = mutableListOf<ReviewModel>()
+                    val userIds = mutableSetOf<String>()
 
+                    // Collect all reviews and userIds
                     for (document in querySnapshot.documents) {
                         try {
                             val review = ReviewModel.fromMap(document.id, document.data!!)
                             reviews.add(review)
+                            userIds.add(review.userId)
                         } catch (e: Exception) {
                             // Handle parsing error
                         }
@@ -342,24 +339,8 @@ class ViewBookActivity : AppCompatActivity() {
                     val userRating = findUserRating(reviews)
                     viewBookVB.rateRb.rating = userRating
 
-                    // Update the adapter
-                    reviewList.clear()
-                    reviewList.addAll(reviews)
-                    reviewAdapter.notifyDataSetChanged()
-
-                    avgRating()
-
-                    // Show/hide empty state
-                    if (reviewAdapter.hasReviewsWithComments()) {
-                        viewBookVB.reviewRv.visibility = android.view.View.VISIBLE
-                        viewBookVB.noReviewsTv.visibility = android.view.View.GONE
-                    } else {
-                        viewBookVB.reviewRv.visibility = android.view.View.GONE
-                        viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
-                    }
-
-                    // Hide loading once reviews are loaded
-                    hideLoading()
+                    // Fetch user data for all reviews
+                    fetchUserDataForReviews(reviews, userIds)
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "Failed to load reviews", Toast.LENGTH_SHORT).show()
@@ -374,6 +355,77 @@ class ViewBookActivity : AppCompatActivity() {
         }
     }
 
+    private fun fetchUserDataForReviews(reviews: List<ReviewModel>, userIds: Set<String>) {
+        val userDataMap = mutableMapOf<String, Pair<String, String?>>()
+        var completedFetches = 0
+
+        if (userIds.isEmpty()) {
+            // No users to fetch, update UI immediately
+            updateReviewsUI(reviews, userDataMap)
+            return
+        }
+
+        userIds.forEach { userId ->
+            UsersDatabase.getById(userId)
+                .addOnSuccessListener { documentSnapshot ->
+                    if (documentSnapshot.exists()) {
+                        val userModel = UserModel.fromMap(
+                            documentSnapshot.id,
+                            documentSnapshot.data ?: emptyMap()
+                        )
+                        userDataMap[userId] = Pair(
+                            userModel.username ?: "Anonymous",
+                            userModel.profilePicture
+                        )
+                    } else {
+                        userDataMap[userId] = Pair("Anonymous", null)
+                    }
+
+                    completedFetches++
+                    if (completedFetches == userIds.size) {
+                        updateReviewsUI(reviews, userDataMap)
+                    }
+                }
+                .addOnFailureListener {
+                    userDataMap[userId] = Pair("Anonymous", null)
+                    completedFetches++
+                    if (completedFetches == userIds.size) {
+                        updateReviewsUI(reviews, userDataMap)
+                    }
+                }
+        }
+    }
+
+    private fun updateReviewsUI(reviews: List<ReviewModel>, userDataMap: Map<String, Pair<String, String?>>) {
+        // Create new reviews with user data populated
+        val reviewsWithUserData = reviews.map { review ->
+            val (username, profilePicture) = userDataMap[review.userId] ?: Pair("Anonymous", null)
+            review.copy(
+                username = username,
+                userProfilePicture = profilePicture
+            )
+        }
+
+        // Update the adapter
+        reviewList.clear()
+        reviewList.addAll(reviewsWithUserData)
+        reviewAdapter.notifyDataSetChanged()
+
+        avgRating()
+
+        // Show/hide empty state
+        if (reviewAdapter.hasReviewsWithComments()) {
+            viewBookVB.reviewRv.visibility = android.view.View.VISIBLE
+            viewBookVB.noReviewsTv.visibility = android.view.View.GONE
+        } else {
+            viewBookVB.reviewRv.visibility = android.view.View.GONE
+            viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
+        }
+
+        // Hide loading once reviews are loaded
+        hideLoading()
+    }
+
     private fun handleRatingChange(newRating: Float) {
         val existingReview = reviewList.firstOrNull { it.userId == currentUserDocumentId }
 
@@ -385,15 +437,9 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun createRatingOnlyReview(rating: Float) {
-        val currentUser = auth.currentUser
-        val currentUsername = currentUser?.displayName ?: "Anonymous"
-        val userProfilePicture = currentUser?.photoUrl?.toString()
-
         val review = ReviewModel(
             bookId = bookDocumentId,
             userId = currentUserDocumentId,
-            username = currentUsername,
-            userProfilePicture = userProfilePicture,
             rating = rating,
             comment = "",
             likes = 0,
@@ -423,53 +469,46 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun updateExistingReviewRating(existingReview: ReviewModel, newRating: Float) {
-        val updatedReview = existingReview.copy(rating = newRating)
-
         ReviewsDatabase.update(existingReview.id, mapOf("rating" to newRating))
             .addOnSuccessListener {
                 Toast.makeText(this, "Rating updated!", Toast.LENGTH_SHORT).show()
                 val position = reviewList.indexOfFirst { it.id == existingReview.id }
                 if (position != -1) {
+                    val updatedReview = reviewList[position].copy(rating = newRating)
                     reviewList[position] = updatedReview
                     reviewAdapter.notifyItemChanged(position)
                     avgRating()
                 }
             }
+            .addOnFailureListener {
+                Toast.makeText(this, "Failed to update rating", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun handleReviewLikeClick(review: ReviewModel, position: Int) {
-        ReviewsDatabase.getById(review.id)
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    val currentReview = ReviewModel.fromMap(documentSnapshot.id, documentSnapshot.data!!)
-                    val isCurrentlyLiked = currentReview.likedBy.contains(currentUserDocumentId)
+        val isCurrentlyLiked = review.likedBy.contains(currentUserDocumentId)
 
-                    if (isCurrentlyLiked) {
-                        // Unlike the review
-                        ReviewsDatabase.unlikeReview(review.id, currentUserDocumentId)
-                            .addOnSuccessListener {
-                                // Refresh from Firestore to get the actual updated data
-                                refreshSingleReview(review.id, position)
-                            }
-                            .addOnFailureListener { e ->
-                                Toast.makeText(this, "Failed to unlike review", Toast.LENGTH_SHORT).show()
-                            }
-                    } else {
-                        // Like the review
-                        ReviewsDatabase.likeReview(review.id, currentUserDocumentId)
-                            .addOnSuccessListener {
-                                // Refresh from Firestore to get the actual updated data
-                                refreshSingleReview(review.id, position)
-                            }
-                            .addOnFailureListener { e ->
-                                Toast.makeText(this, "Failed to like review", Toast.LENGTH_SHORT).show()
-                            }
-                    }
+        if (isCurrentlyLiked) {
+            // Unlike the review
+            ReviewsDatabase.unlikeReview(review.id, currentUserDocumentId)
+                .addOnSuccessListener {
+                    // Refresh the specific review from Firestore
+                    refreshSingleReview(review.id, position)
                 }
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to check review status", Toast.LENGTH_SHORT).show()
-            }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to unlike review", Toast.LENGTH_SHORT).show()
+                }
+        } else {
+            // Like the review
+            ReviewsDatabase.likeReview(review.id, currentUserDocumentId)
+                .addOnSuccessListener {
+                    // Refresh the specific review from Firestore
+                    refreshSingleReview(review.id, position)
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to like review", Toast.LENGTH_SHORT).show()
+                }
+        }
     }
 
     private fun refreshSingleReview(reviewId: String, position: Int) {
@@ -478,10 +517,41 @@ class ViewBookActivity : AppCompatActivity() {
                 if (documentSnapshot.exists()) {
                     val updatedReview = ReviewModel.fromMap(documentSnapshot.id, documentSnapshot.data!!)
 
-                    if (position in 0 until reviewList.size) {
-                        reviewList[position] = updatedReview
-                        reviewAdapter.notifyItemChanged(position)
-                    }
+                    // Fetch user data for this single review
+                    fetchUserDataForSingleReview(updatedReview, position)
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Failed to refresh review", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun fetchUserDataForSingleReview(review: ReviewModel, position: Int) {
+        UsersDatabase.getById(review.userId)
+            .addOnSuccessListener { documentSnapshot ->
+                val updatedReviewWithUserData = if (documentSnapshot.exists()) {
+                    val userModel = UserModel.fromMap(
+                        documentSnapshot.id,
+                        documentSnapshot.data ?: emptyMap()
+                    )
+                    review.copy(
+                        username = userModel.username ?: "Anonymous",
+                        userProfilePicture = userModel.profilePicture
+                    )
+                } else {
+                    review.copy(username = "Anonymous")
+                }
+
+                if (position in 0 until reviewList.size) {
+                    reviewList[position] = updatedReviewWithUserData
+                    reviewAdapter.notifyItemChanged(position)
+                }
+            }
+            .addOnFailureListener {
+                val updatedReviewWithUserData = review.copy(username = "Anonymous")
+                if (position in 0 until reviewList.size) {
+                    reviewList[position] = updatedReviewWithUserData
+                    reviewAdapter.notifyItemChanged(position)
                 }
             }
     }
@@ -614,18 +684,19 @@ class ViewBookActivity : AppCompatActivity() {
             ReviewsDatabase.getReviewsByBookId(bookDocumentId)
                 .addOnSuccessListener { querySnapshot ->
                     val reviews = mutableListOf<ReviewModel>()
+                    val userIds = mutableSetOf<String>()
+
                     for (document in querySnapshot.documents) {
                         try {
                             val review = ReviewModel.fromMap(document.id, document.data!!)
                             reviews.add(review)
+                            userIds.add(review.userId)
                         } catch (e: Exception) {
                             // Handle parsing error
                         }
                     }
 
-                    reviewList.clear()
-                    reviewList.addAll(reviews)
-                    reviewAdapter.notifyDataSetChanged()
+                    fetchUserDataForReviews(reviews, userIds)
                 }
         }
     }
