@@ -52,7 +52,7 @@ class HomeGenreAdapter(
             holder.viewBinding.genreTv.setTextColor(
                 ContextCompat.getColor(holder.viewBinding.root.context, R.color.black)
             )
-            holder.viewBinding.genreCardView.strokeWidth = 1 // Add border when not selected
+            holder.viewBinding.genreCardView.strokeWidth = 3 // Add border when not selected
         }
     }
 
