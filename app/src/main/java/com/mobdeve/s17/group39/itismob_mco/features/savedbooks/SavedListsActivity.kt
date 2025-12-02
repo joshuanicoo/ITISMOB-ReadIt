@@ -3,6 +3,7 @@ package com.mobdeve.s17.group39.itismob_mco.features.savedbooks
 import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Toast
@@ -16,6 +17,10 @@ import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.models.ListModel
 
 class SavedListsActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "SavedListsActivity"
+    }
 
     private lateinit var binding: SavedListsLayoutBinding
     private lateinit var adapter: SavedListsAdapter
@@ -31,6 +36,15 @@ class SavedListsActivity : AppCompatActivity() {
         binding = SavedListsLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Check if user is logged in
+        if (currentUserId.isEmpty()) {
+            Toast.makeText(this, "Please log in to view your lists", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        Log.d(TAG, "Current User ID: $currentUserId")
+
         setupRecyclerView()
         setupClickListeners()
         setupRealTimeListener()
@@ -42,6 +56,8 @@ class SavedListsActivity : AppCompatActivity() {
         }
         binding.savedListsRv.adapter = adapter
         binding.savedListsRv.layoutManager = LinearLayoutManager(this)
+
+        Log.d(TAG, "RecyclerView setup complete")
     }
 
     private fun setupClickListeners() {
@@ -51,53 +67,74 @@ class SavedListsActivity : AppCompatActivity() {
     }
 
     private fun setupRealTimeListener() {
+        Log.d(TAG, "Setting up real-time listener for user: $currentUserId")
+
         listsListener = ListsDatabase.getAll()
-            .whereEqualTo("user_id", currentUserId)
+            .whereEqualTo("userId", currentUserId)
             .addSnapshotListener { querySnapshot, error ->
                 if (error != null) {
+                    Log.e(TAG, "Error loading lists", error)
                     Toast.makeText(this, "Error loading lists: ${error.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
 
+                Log.d(TAG, "Snapshot received. Document count: ${querySnapshot?.documents?.size ?: 0}")
+
                 val lists = querySnapshot?.documents?.mapNotNull { document ->
                     try {
-                        ListModel.fromMap(document.id, document.data ?: emptyMap())
+                        Log.d(TAG, "Processing document: ${document.id}")
+                        Log.d(TAG, "Document data: ${document.data}")
+
+                        val list = ListModel.fromMap(document.id, document.data ?: emptyMap())
+                        Log.d(TAG, "Parsed list: $list")
+                        list
                     } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing document ${document.id}", e)
                         null
                     }
                 } ?: emptyList()
 
+                Log.d(TAG, "Total lists parsed: ${lists.size}")
                 updateUI(lists)
             }
     }
 
     private fun updateUI(lists: List<ListModel>) {
+        Log.d(TAG, "Updating UI with ${lists.size} lists")
+
         val savedLists = lists.map { list ->
             SavedList(list.listName, list.books.size, list.documentId)
         }
+
         adapter.updateData(savedLists)
 
-        // Check if we have the emptyStateTv in layout, if not use alternative approach
         if (lists.isEmpty()) {
-            // If emptyStateTv exists, use it
+            Log.d(TAG, "No lists found - showing empty state")
+            binding.savedListsRv.visibility = android.view.View.GONE
+
+            // Try to show empty state text if it exists
             try {
                 binding.emptyStateTv.visibility = android.view.View.VISIBLE
-                binding.savedListsRv.visibility = android.view.View.GONE
+                binding.emptyStateTv.text = "No lists yet. Create your first list!"
             } catch (e: Exception) {
-                // If emptyStateTv doesn't exist, show a toast
-                Toast.makeText(this, "You don't have any lists yet", Toast.LENGTH_SHORT).show()
+                Log.w(TAG, "emptyStateTv not found in layout", e)
+                Toast.makeText(this, "You don't have any lists yet. Create one!", Toast.LENGTH_SHORT).show()
             }
         } else {
+            Log.d(TAG, "Showing ${lists.size} lists")
+            binding.savedListsRv.visibility = android.view.View.VISIBLE
+
             try {
                 binding.emptyStateTv.visibility = android.view.View.GONE
-                binding.savedListsRv.visibility = android.view.View.VISIBLE
             } catch (e: Exception) {
-                binding.savedListsRv.visibility = android.view.View.VISIBLE
+                // Empty state view doesn't exist, which is fine
             }
         }
     }
 
     private fun openBooksInList(savedList: SavedList) {
+        Log.d(TAG, "Opening list: ${savedList.name} (ID: ${savedList.id})")
+
         val intent = Intent(this, BooksInListActivity::class.java)
         intent.putExtra(BooksInListActivity.LIST_NAME_KEY, savedList.name)
         intent.putExtra(BooksInListActivity.LIST_ID_KEY, savedList.id)
@@ -109,14 +146,14 @@ class SavedListsActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setCancelable(true)
-        val binding = NewListLayoutBinding.inflate(layoutInflater)
-        dialog.setContentView(binding.root)
+        val dialogBinding = NewListLayoutBinding.inflate(layoutInflater)
+        dialog.setContentView(dialogBinding.root)
 
         val heightInPixels = (200 * resources.displayMetrics.density).toInt()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
 
-        binding.saveNewListBtn.setOnClickListener {
-            val listName = binding.newListNameEt.text.toString().trim()
+        dialogBinding.saveNewListBtn.setOnClickListener {
+            val listName = dialogBinding.newListNameEt.text.toString().trim()
             if (listName.isNotEmpty()) {
                 createNewList(listName, dialog)
             } else {
@@ -124,7 +161,7 @@ class SavedListsActivity : AppCompatActivity() {
             }
         }
 
-        binding.cancelNewListBtn.setOnClickListener {
+        dialogBinding.cancelNewListBtn.setOnClickListener {
             dialog.dismiss()
         }
 
@@ -132,12 +169,16 @@ class SavedListsActivity : AppCompatActivity() {
     }
 
     private fun createNewList(listName: String, dialog: Dialog) {
+        Log.d(TAG, "Creating new list: $listName for user: $currentUserId")
+
         ListsDatabase.createList(listName, currentUserId)
             .addOnSuccessListener {
+                Log.d(TAG, "List created successfully: $listName")
                 Toast.makeText(this, "List '$listName' created successfully!", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
             .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to create list: $listName", e)
                 Toast.makeText(this, "Failed to create list: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
@@ -145,6 +186,7 @@ class SavedListsActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         listsListener?.remove()
+        Log.d(TAG, "Activity destroyed, listener removed")
     }
 }
 
