@@ -102,6 +102,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 
     // Other
+    implementation("org.jsoup:jsoup:1.16.2")
     implementation(libs.engage.core)
 
     // Testing

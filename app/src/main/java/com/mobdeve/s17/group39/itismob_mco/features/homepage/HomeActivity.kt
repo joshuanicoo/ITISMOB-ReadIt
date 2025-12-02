@@ -19,10 +19,12 @@ import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksApiInterface
 import com.mobdeve.s17.group39.itismob_mco.utils.GoogleBooksResponse
 import com.mobdeve.s17.group39.itismob_mco.utils.LoadingUtils
 import com.mobdeve.s17.group39.itismob_mco.utils.RetrofitInstance
+import com.mobdeve.s17.group39.itismob_mco.utils.Volume
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.util.Locale
+import kotlin.collections.HashSet
 
 @ExperimentalGetImage
 class HomeActivity : AppCompatActivity() {
@@ -31,8 +33,14 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var adapter: HomeAdapter
     private lateinit var apiInterface: GoogleBooksApiInterface
     private lateinit var handler: Handler
-
     private lateinit var genreAdapter: HomeGenreAdapter
+
+    // Store original books data for filtering
+    private var allBooks: List<Volume> = emptyList()
+    private var currentQuery: String = ""
+    private var currentGenre: String? = null
+    private var selectedGenrePosition: Int = 0 // Track which genre is selected
+    private var isFilteringFromSearch: Boolean = false // Track if we're filtering search results
 
     private val scannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -53,6 +61,7 @@ class HomeActivity : AppCompatActivity() {
         getApiInterface()
         setupClickListeners()
         setupRecyclerView()
+        setupGenreRecyclerView()
         showLoading()
         getBooks()
 
@@ -71,8 +80,13 @@ class HomeActivity : AppCompatActivity() {
                 val searchText = query?.lowercase(Locale.getDefault()) ?: ""
                 if (searchText.isNotEmpty()) {
                     handler.removeCallbacksAndMessages(null)
+                    currentQuery = searchText
+                    currentGenre = null
+                    selectedGenrePosition = 0 // Reset to "All" when searching
+                    genreAdapter.setSelectedPosition(0)
                     searchBooks(searchText, 40, "books")
                 } else {
+                    currentQuery = ""
                     getBooks()
                 }
                 return true
@@ -83,9 +97,14 @@ class HomeActivity : AppCompatActivity() {
                 handler.removeCallbacksAndMessages(null)
                 if (searchText.isNotEmpty()) {
                     handler.postDelayed({
+                        currentQuery = searchText
+                        currentGenre = null
+                        selectedGenrePosition = 0 // Reset to "All" when searching
+                        genreAdapter.setSelectedPosition(0)
                         searchBooks(searchText, 40, "books")
                     }, 500)
                 } else {
+                    currentQuery = ""
                     getBooks()
                 }
                 return true
@@ -97,16 +116,102 @@ class HomeActivity : AppCompatActivity() {
         this.adapter = HomeAdapter(mutableListOf())
         this.binding.bookListRv.adapter = adapter
         this.binding.bookListRv.layoutManager = GridLayoutManager(this, 2)
+    }
 
-        var genreString = "Fiction, Mystery, Romance, Science Fiction, Fantasy, Thriller, Biography, History, Horror, Young Adult, Comedy, Adventure"
+    private fun setupGenreRecyclerView() {
         val dataGenre = ArrayList<String>()
-        if (!genreString.isNullOrEmpty()) {
-            val genres = genreString.split(",").map { it.trim() }
-            dataGenre.addAll(genres)
+        dataGenre.add("All")
+        this.genreAdapter = HomeGenreAdapter(dataGenre) { selectedGenre: String, position: Int ->
+            onGenreSelected(selectedGenre, position)
         }
-        this.genreAdapter = HomeGenreAdapter(dataGenre)
         this.binding.genreListRv.adapter = genreAdapter
         this.binding.genreListRv.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+    }
+
+    private fun onGenreSelected(genre: String, position: Int) {
+        selectedGenrePosition = position
+        genreAdapter.setSelectedPosition(position)
+
+        if (genre == "All") {
+            currentGenre = null
+            isFilteringFromSearch = false
+
+            // Show all books (either from search results or initial load)
+            if (currentQuery.isNotEmpty()) {
+                // We're in search mode, show all search results
+                adapter.updateData(allBooks)
+            } else {
+                // We're in normal mode, show all books
+                adapter.updateData(allBooks)
+            }
+        } else {
+            currentGenre = genre
+            isFilteringFromSearch = (currentQuery.isNotEmpty())
+            filterBooksByGenre(genre)
+        }
+    }
+
+    private fun filterBooksByGenre(genre: String) {
+        // Always filter from the original source (allBooks), not from already filtered results
+        val filteredBooks = allBooks.filter { volume ->
+            hasMatchingGenre(volume, genre)
+        }
+
+        adapter.updateData(filteredBooks)
+
+        // Show message if no books found for this genre
+        if (filteredBooks.isEmpty()) {
+            Toast.makeText(this, "No books found in $genre category", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun hasMatchingGenre(volume: Volume, genre: String): Boolean {
+        return volume.volumeInfo.categories?.any { category ->
+            // Handle different category formats:
+            // 1. "Fiction/Mystery/Thriller" -> split by "/"
+            // 2. "Fiction, Mystery, Thriller" -> split by ","
+            // 3. Check if category contains the genre (case-insensitive)
+            category.split("/", ",").any {
+                it.trim().equals(genre, ignoreCase = true)
+            }
+        } ?: false
+    }
+
+    private fun extractGenresFromBooks(books: List<Volume>): List<String> {
+        val genresSet = HashSet<String>()
+
+        books.forEach { volume ->
+            volume.volumeInfo.categories?.forEach { category ->
+                // Split categories by common separators
+                category.split("/", ",").forEach { genrePart ->
+                    val trimmedGenre = genrePart.trim()
+                    if (trimmedGenre.isNotEmpty() && !trimmedGenre.equals("General", ignoreCase = true)) {
+                        genresSet.add(trimmedGenre)
+                    }
+                }
+            }
+        }
+
+        // Get top 10 most common genres or all if less than 10
+        val genreCounts = HashMap<String, Int>()
+        books.forEach { volume ->
+            volume.volumeInfo.categories?.forEach { category ->
+                category.split("/", ",").forEach { genrePart ->
+                    val trimmedGenre = genrePart.trim()
+                    if (trimmedGenre.isNotEmpty()) {
+                        genreCounts[trimmedGenre] = genreCounts.getOrDefault(trimmedGenre, 0) + 1
+                    }
+                }
+            }
+        }
+
+        // Sort by frequency and get top genres
+        val topGenres = genreCounts.entries
+            .sortedByDescending { it.value }
+            .take(10)
+            .map { it.key }
+
+        return listOf("All") + topGenres.sorted()
     }
 
     private fun showLoading() {
@@ -128,7 +233,13 @@ class HomeActivity : AppCompatActivity() {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     data = response.body()!!
+                    allBooks = data.items // Store original books
                     adapter.updateData(data.items)
+
+                    // Extract and display genres from the books
+                    val genres = extractGenresFromBooks(data.items)
+                    genreAdapter.updateGenres(genres)
+
                     hideLoading()
                 } else {
                     hideLoading()
@@ -150,7 +261,19 @@ class HomeActivity : AppCompatActivity() {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     data = response.body()!!
-                    adapter.updateData(data.items)
+                    allBooks = data.items // Store original search results
+
+                    // Extract and update genres from search results
+                    val genres = extractGenresFromBooks(data.items)
+                    genreAdapter.updateGenres(genres)
+
+                    // Apply genre filter if one is selected (from previous state)
+                    if (currentGenre != null && isFilteringFromSearch) {
+                        filterBooksByGenre(currentGenre!!)
+                    } else {
+                        adapter.updateData(data.items)
+                    }
+
                     hideLoading()
                 } else {
                     hideLoading()
@@ -172,7 +295,13 @@ class HomeActivity : AppCompatActivity() {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     data = response.body()!!
+                    allBooks = data.items // Store original results
                     adapter.updateData(data.items)
+
+                    // Extract and display genres from the book(s)
+                    val genres = extractGenresFromBooks(data.items)
+                    genreAdapter.updateGenres(genres)
+
                     hideLoading()
                 } else {
                     hideLoading()
@@ -211,7 +340,7 @@ class HomeActivity : AppCompatActivity() {
     private fun searchBookByIsbn(isbn: String) {
         if (isbn.isNotEmpty()) {
             Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
-            var concatISBN = "isbn:$isbn"
+            val concatISBN = "isbn:$isbn"
             searchByISBN(concatISBN)
         } else {
             Toast.makeText(this, "Invalid ISBN scanned", Toast.LENGTH_SHORT).show()

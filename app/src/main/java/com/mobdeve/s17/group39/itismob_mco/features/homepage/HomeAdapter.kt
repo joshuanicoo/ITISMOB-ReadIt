@@ -19,6 +19,10 @@ class HomeAdapter(private var data: List<Volume>): androidx.recyclerview.widget.
     private var onItemClickListener: ((Volume, Int) -> Unit)? = null
     private val googleBooksApi: GoogleBooksApiInterface = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
 
+    // Expose current data for filtering - ADD THIS PROPERTY
+    val currentData: List<Volume>
+        get() = data
+
     fun setOnItemClickListener(listener: (Volume, Int) -> Unit) {
         onItemClickListener = listener
     }
