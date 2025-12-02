@@ -1,17 +1,22 @@
 package com.mobdeve.s17.group39.itismob_mco.features.savedbooks
 
+import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
 import com.mobdeve.s17.group39.itismob_mco.database.ListsDatabase
+import com.mobdeve.s17.group39.itismob_mco.databinding.DeleteConfirmationDialogBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.SavedListsLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.databinding.NewListLayoutBinding
 import com.mobdeve.s17.group39.itismob_mco.models.ListModel
@@ -51,9 +56,16 @@ class SavedListsActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = SavedListsAdapter(emptyList()) { list ->
-            openBooksInList(list)
-        }
+        adapter = SavedListsAdapter(emptyList(),
+            onItemClick = { list ->
+                if (!adapter.getDeleteMode()) {
+                    openBooksInList(list)
+                }
+            },
+            onDeleteClick = { listId ->
+                showDeleteConfirmation(listId)
+            }
+        )
         binding.savedListsRv.adapter = adapter
         binding.savedListsRv.layoutManager = LinearLayoutManager(this)
 
@@ -62,8 +74,93 @@ class SavedListsActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         binding.createNewListBtn.setOnClickListener {
-            showNewListDialog()
+            if (!adapter.getDeleteMode()) {
+                showNewListDialog()
+            }
         }
+
+        // Set up delete mode toggle button
+        binding.deleteModeBtn.setOnClickListener {
+            toggleDeleteMode()
+        }
+    }
+
+    private fun toggleDeleteMode() {
+        val isDeleteMode = adapter.getDeleteMode()
+        adapter.setDeleteMode(!isDeleteMode)
+
+        if (!isDeleteMode) {
+            // Entering delete mode
+            binding.deleteModeBtn.setImageDrawable(
+                ContextCompat.getDrawable(this, android.R.drawable.ic_menu_close_clear_cancel)
+            )
+            binding.deleteModeBtn.setColorFilter(
+                ContextCompat.getColor(this, android.R.color.holo_red_dark)
+            )
+            binding.createNewListBtn.isEnabled = false
+            binding.createNewListBtn.alpha = 0.5f
+            Toast.makeText(this, "Delete mode: Tap trash icons to remove lists", Toast.LENGTH_SHORT).show()
+        } else {
+            // Exiting delete mode
+            binding.deleteModeBtn.setImageDrawable(
+                ContextCompat.getDrawable(this, android.R.drawable.ic_delete)
+            )
+            binding.deleteModeBtn.setColorFilter(
+                ContextCompat.getColor(this, android.R.color.holo_green_light)
+            )
+            binding.createNewListBtn.isEnabled = true
+            binding.createNewListBtn.alpha = 1f
+        }
+    }
+
+    private fun showDeleteConfirmation(listId: String) {
+        // Create custom dialog
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setCancelable(true)
+
+        val dialogBinding = DeleteConfirmationDialogBinding.inflate(layoutInflater)
+        dialog.setContentView(dialogBinding.root)
+
+        // Set dialog dimensions (similar to your new list dialog)
+        val heightInPixels = (220 * resources.displayMetrics.density).toInt()
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, heightInPixels)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        // Set dialog message
+        dialogBinding.dialogMessageTv.text = "Are you sure you want to delete this list?"
+
+        // Set up cancel button
+        dialogBinding.cancelBtn.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Set up delete button
+        dialogBinding.deleteBtn.setOnClickListener {
+            deleteList(listId)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun deleteList(listId: String) {
+        Log.d(TAG, "Deleting list: $listId")
+
+        ListsDatabase.deleteList(listId)
+            .addOnSuccessListener {
+                Log.d(TAG, "List deleted successfully: $listId")
+                Toast.makeText(this, "List deleted successfully!", Toast.LENGTH_SHORT).show()
+
+                // If no lists remain, exit delete mode
+                if (adapter.itemCount <= 1) {
+                    toggleDeleteMode()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to delete list: $listId", e)
+                Toast.makeText(this, "Failed to delete list: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun setupRealTimeListener() {
@@ -111,6 +208,11 @@ class SavedListsActivity : AppCompatActivity() {
         if (lists.isEmpty()) {
             Log.d(TAG, "No lists found - showing empty state")
             binding.savedListsRv.visibility = android.view.View.GONE
+
+            // Exit delete mode if active
+            if (adapter.getDeleteMode()) {
+                toggleDeleteMode()
+            }
 
             // Try to show empty state text if it exists
             try {
@@ -188,7 +290,9 @@ class SavedListsActivity : AppCompatActivity() {
         listsListener?.remove()
         Log.d(TAG, "Activity destroyed, listener removed")
     }
+
 }
+
 
 data class SavedList(
     val name: String,
