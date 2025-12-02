@@ -20,7 +20,6 @@ class ReviewDialog(
     private val bookCoverUrl: String?,
     private val bookDocumentId: String,
     private val currentUserDocumentId: String,
-    private val currentUsername: String?,
     private val googleBooksId: String,
     private val isBookLiked: Boolean,
     private val onReviewSubmitted: () -> Unit,
@@ -33,7 +32,6 @@ class ReviewDialog(
     private var isLiked = isBookLiked
     private val auth = FirebaseAuth.getInstance()
 
-    // Displays the Dialog
     fun show() {
         dialog = Dialog(context)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -66,7 +64,7 @@ class ReviewDialog(
                 // User already has a review, pre-fill the dialog
                 binding.rateDialogRb.rating = existingReview.rating
                 binding.reviewBodyEt.setText(existingReview.comment)
-                binding.reviewBodyEt.setSelection(existingReview.comment.length) // Move cursor to end
+                binding.reviewBodyEt.setSelection(existingReview.comment.length)
             } else {
                 // No existing review, use the passed rating
                 binding.rateDialogRb.rating = existingUserRating
@@ -95,8 +93,6 @@ class ReviewDialog(
     private fun toggleLike() {
         isLiked = !isLiked
         updateLikeButtonUI()
-
-        // Notify the activity about the like state change
         onLikeToggled(isLiked)
     }
 
@@ -122,18 +118,14 @@ class ReviewDialog(
             return
         }
 
-        // Always update or create the user's single review
         createOrUpdateReview(rating, comment)
     }
 
     private fun createOrUpdateReview(rating: Float, comment: String) {
-        // Check if user already has a review for this book
         checkExistingReview { existingReview ->
             if (existingReview != null) {
-                // Update existing review with new rating and comment
                 updateExistingReview(existingReview, rating, comment)
             } else {
-                // Create new review (user's first review for this book)
                 createNewReview(rating, comment)
             }
         }
@@ -143,7 +135,8 @@ class ReviewDialog(
         val updates = mapOf(
             "rating" to newRating,
             "comment" to newComment,
-            "authorLikedBook" to isLiked
+            "authorLikedBook" to isLiked,
+            "updatedAt" to Timestamp.now()
         )
 
         ReviewsDatabase.update(existingReview.id, updates)
@@ -160,13 +153,11 @@ class ReviewDialog(
     private fun createNewReview(rating: Float, comment: String) {
         // Get current user from Firebase Auth
         val currentUser = auth.currentUser
-        val userProfilePicture = currentUser?.photoUrl?.toString()
 
+        // Create review with only userId reference
         val review = ReviewModel(
             bookId = bookDocumentId,
-            userId = currentUserDocumentId,
-            username = currentUsername ?: "Anonymous",
-            userProfilePicture = userProfilePicture,
+            userId = currentUserDocumentId, // Only store userId
             rating = rating,
             comment = comment,
             likes = 0,
@@ -199,14 +190,13 @@ class ReviewDialog(
         ReviewsDatabase.getReviewsByBookId(bookDocumentId)
             .addOnSuccessListener { querySnapshot ->
                 val existingReview = querySnapshot.documents
-                    .map { document ->
+                    .mapNotNull { document ->
                         try {
                             ReviewModel.fromMap(document.id, document.data!!)
                         } catch (e: Exception) {
                             null
                         }
                     }
-                    .filterNotNull()
                     .firstOrNull { it.userId == currentUserDocumentId }
                 callback(existingReview)
             }
@@ -216,14 +206,11 @@ class ReviewDialog(
     }
 
     private fun ensureBookExists(callback: (Boolean) -> Unit) {
-        // Check if book already exists
         BooksDatabase.getById(bookDocumentId)
             .addOnSuccessListener { documentSnapshot ->
                 if (documentSnapshot.exists()) {
-                    // Book already exists
                     callback(true)
                 } else {
-                    // Book doesn't exist, create it
                     createBookInCollection(callback)
                 }
             }

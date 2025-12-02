@@ -10,7 +10,7 @@ class ReviewViewHolder(val binding: ReviewItemLayoutBinding) :
     RecyclerView.ViewHolder(binding.root) {
 
     fun bindData(review: ReviewModel, currentUserId: String = "") {
-        // Set username
+        // Set username (now part of ReviewModel)
         binding.usernameTv.text = review.username
 
         // Set rating
@@ -29,7 +29,7 @@ class ReviewViewHolder(val binding: ReviewItemLayoutBinding) :
         val isLikedByCurrentUser = review.likedBy.contains(currentUserId)
         updateReviewLikeUI(isLikedByCurrentUser)
 
-        // Load user profile picture
+        // Load user profile picture (now part of ReviewModel)
         if (!review.userProfilePicture.isNullOrEmpty()) {
             Glide.with(binding.root.context)
                 .load(review.userProfilePicture)
@@ -49,7 +49,7 @@ class ReviewViewHolder(val binding: ReviewItemLayoutBinding) :
             binding.isLikedIv.visibility = android.view.View.VISIBLE
         } else {
             binding.isLikedIv.setImageResource(R.drawable.ic_heart_off)
-            binding.isLikedIv.visibility = android.view.View.GONE // Hide if author didn't like the book
+            binding.isLikedIv.visibility = android.view.View.GONE
         }
     }
 

@@ -7,11 +7,14 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.request.RequestOptions
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.mobdeve.s17.group39.itismob_mco.R
 import com.mobdeve.s17.group39.itismob_mco.database.BooksDatabase
 import com.mobdeve.s17.group39.itismob_mco.database.UsersDatabase
@@ -26,8 +29,12 @@ import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.util.Collections
+import jp.wasabeef.glide.transformations.BlurTransformation
+import jp.wasabeef.glide.transformations.ColorFilterTransformation
+import android.graphics.Color
+import androidx.lifecycle.lifecycleScope
 import kotlin.coroutines.resumeWithException
+import kotlin.random.Random
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -37,34 +44,28 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var favoritesAdapter: ProfileFavoritesAdapter
     private lateinit var googleBooksApi: GoogleBooksApiInterface
     private val favoriteBooks = mutableListOf<BookItem>()
-    private val coroutineScope = CoroutineScope(Dispatchers.Main)
+    private var bannerBookUrl: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ProfileActivityLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        initializeAuth()
-        setupFavoritesRecyclerView()
-        loadUserData()
-        setupClickListeners()
+        initAuth()
+        setupFavorites()
+        loadUser()
+        setupClicks()
     }
 
     override fun onResume() {
         super.onResume()
-        // Refresh favorites when returning to profile
         val currentUser = auth.currentUser
         currentUser?.let {
-            loadFavoriteBooks(it.uid)
+            loadFavorites(it.uid)
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        coroutineScope.cancel()
-    }
-
-    private fun initializeAuth() {
+    private fun initAuth() {
         auth = FirebaseAuth.getInstance()
         googleBooksApi = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
 
@@ -90,30 +91,19 @@ class ProfileActivity : AppCompatActivity() {
         LoadingUtils.hideLoading(binding.loadingContainer, binding.mainContentContainer)
     }
 
-    private fun setupFavoritesRecyclerView() {
-        favoritesAdapter = ProfileFavoritesAdapter(favoriteBooks, ::openBookDetails)
-        binding.favoritesRv.apply {
-            adapter = favoritesAdapter
-            layoutManager = LinearLayoutManager(this@ProfileActivity, LinearLayoutManager.HORIZONTAL, false)
-        }
-    }
-
-    private fun loadUserData() {
-        val currentUser = auth.currentUser ?: run {
-            return
-        }
+    private fun loadUser() {
+        val currentUser = auth.currentUser ?: return
 
         UsersDatabase.getById(currentUser.uid)
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    val userModel = UserModel.fromMap(documentSnapshot.id, documentSnapshot.data ?: emptyMap())
-                    setupUserProfile(userModel, currentUser)
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val userModel = UserModel.fromMap(doc.id, doc.data ?: emptyMap())
+                    setupProfile(userModel, currentUser)
                 }
             }
     }
 
-    private fun setupUserProfile(userModel: UserModel, currentUser: FirebaseUser) {
-        // Set profile picture
+    private fun setupProfile(userModel: UserModel, currentUser: FirebaseUser) {
         val photoUrl = userModel.profilePicture ?: currentUser.photoUrl?.toString()
         Glide.with(binding.root.context)
             .load(photoUrl)
@@ -122,28 +112,28 @@ class ProfileActivity : AppCompatActivity() {
             .circleCrop()
             .into(binding.profilePicIv)
 
-        // Set username and bio
-        binding.profileNameEt.text = SpannableStringBuilder(userModel.username ?: currentUser.displayName ?: "User")
+        binding.profileNameEt.text = SpannableStringBuilder(
+            userModel.username ?: currentUser.displayName ?: "User"
+        )
         binding.profileBioEt.text = SpannableStringBuilder(userModel.bio ?: "")
 
-        // Load favorite books
-        loadFavoriteBooks(currentUser.uid)
+        loadFavorites(currentUser.uid)
     }
 
-    private fun loadFavoriteBooks(userId: String) {
+    private fun loadFavorites(userId: String) {
         UsersDatabase.getFavorites(userId)
-            .addOnSuccessListener { favoriteBookIds ->
-                if (favoriteBookIds.isEmpty()) {
+            .addOnSuccessListener { favoriteIds ->
+                if (favoriteIds.isEmpty()) {
                     binding.favoritesRv.visibility = android.view.View.GONE
                     binding.noFavoritesTv.visibility = android.view.View.VISIBLE
                     hideLoading()
                     return@addOnSuccessListener
                 }
 
-                // Use coroutines to maintain order and handle async operations properly
-                coroutineScope.launch {
-                    val loadedBooks = loadBooksInOrder(favoriteBookIds)
-                    updateFavoritesUI(loadedBooks)
+                lifecycleScope.launch {
+                    val books = loadBooks(favoriteIds)
+                    updateUI(books)
+                    setBanner(books)
                 }
             }
             .addOnFailureListener {
@@ -154,62 +144,101 @@ class ProfileActivity : AppCompatActivity() {
             }
     }
 
-    private suspend fun loadBooksInOrder(favoriteBookIds: List<String>): List<BookItem> = withContext(Dispatchers.IO) {
-        val loadedBooks = mutableListOf<BookItem>()
+    private fun setupFavorites() {
+        favoritesAdapter = ProfileFavoritesAdapter(favoriteBooks, ::openBook)
+        binding.favoritesRv.apply {
+            adapter = favoritesAdapter
+            layoutManager = LinearLayoutManager(
+                this@ProfileActivity,
+                LinearLayoutManager.HORIZONTAL,
+                false
+            )
+        }
+    }
 
-        // Process books in the order they appear in favorites list
-        favoriteBookIds.forEachIndexed { index, bookDocumentId ->
+    // Sets a random favorite book cover as the banner
+    private fun setBanner(books: List<BookItem>) {
+        if (books.isNotEmpty()) {
+            val randomBook = books[Random.nextInt(books.size)]
+            bannerBookUrl = randomBook.thumbnailUrl
+
+            if (!randomBook.thumbnailUrl.isNullOrEmpty()) {
+                loadBanner(randomBook.thumbnailUrl)
+            } else {
+                val bookWithImage = books.firstOrNull { !it.thumbnailUrl.isNullOrEmpty() }
+                if (bookWithImage != null) {
+                    bannerBookUrl = bookWithImage.thumbnailUrl
+                    loadBanner(bookWithImage.thumbnailUrl)
+                }
+            }
+        }
+    }
+
+    private fun loadBanner(imageUrl: String) {
+        Glide.with(this)
+            .load(imageUrl)
+            .apply(
+                RequestOptions()
+                    .transform(
+                        CenterCrop(),
+                        BlurTransformation(25, 3),
+                        ColorFilterTransformation(Color.parseColor("#66000000"))
+                    )
+                    .placeholder(android.R.color.transparent)
+                    .error(R.drawable.book_placeholder)
+            )
+            .into(binding.profileBannerIv)
+    }
+
+    private suspend fun loadBooks(bookIds: List<String>): List<BookItem> = withContext(Dispatchers.IO) {
+        val books = mutableListOf<BookItem>()
+
+        bookIds.forEachIndexed { _, bookDocId ->
             try {
-                val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
-                val documentSnapshot = BooksDatabase.getById(cleanBookId).await()
+                val cleanId = bookDocId.trim().removeSurrounding("\"")
+                val doc = BooksDatabase.getById(cleanId).await()
 
-                if (documentSnapshot.exists()) {
-                    val googleBooksId = extractGoogleBooksId(documentSnapshot.data?.get("bookId"))
-                    if (!googleBooksId.isNullOrEmpty()) {
-                        val bookItem = fetchBookDetailsWithRetry(googleBooksId, cleanBookId)
-                        loadedBooks.add(bookItem)
+                if (doc.exists()) {
+                    val googleId = getBookId(doc.data?.get("bookId"))
+                    if (!googleId.isNullOrEmpty()) {
+                        val book = fetchBook(googleId, cleanId)
+                        books.add(book)
                     } else {
-                        // Add placeholder if Google Books ID is not found
-                        loadedBooks.add(createPlaceholderBookItem(cleanBookId))
+                        books.add(createPlaceholder(cleanId))
                     }
                 } else {
-                    // Add placeholder if book document doesn't exist
-                    loadedBooks.add(createPlaceholderBookItem(cleanBookId))
+                    books.add(createPlaceholder(cleanId))
                 }
             } catch (e: Exception) {
-                // Add placeholder on error but maintain order
-                val cleanBookId = bookDocumentId.trim().removeSurrounding("\"")
-                loadedBooks.add(createPlaceholderBookItem(cleanBookId))
+                val cleanId = bookDocId.trim().removeSurrounding("\"")
+                books.add(createPlaceholder(cleanId))
             }
         }
 
-        return@withContext loadedBooks
+        return@withContext books
     }
 
-    private suspend fun fetchBookDetailsWithRetry(googleBooksId: String, bookDocumentId: String): BookItem = withContext(Dispatchers.IO) {
+    private suspend fun fetchBook(googleId: String, bookDocId: String): BookItem = withContext(Dispatchers.IO) {
         try {
-            // Using retrofit's await() for coroutines
-            val response = googleBooksApi.getBookByVolumeId(googleBooksId).await()
+            val response = googleBooksApi.getBookByVolumeId(googleId).await()
 
             if (response.isSuccessful) {
-                response.body()?.let { bookData ->
-                    val volumeInfo = bookData["volumeInfo"] as? Map<String, Any>
+                response.body()?.let { data ->
+                    val volumeInfo = data["volumeInfo"] as? Map<String, Any>
                     volumeInfo?.let {
-                        return@withContext createBookItemFromVolumeInfo(bookDocumentId, it)
+                        return@withContext createBook(bookDocId, it)
                     }
                 }
             }
         } catch (e: Exception) {
-            // Fall through to create placeholder
         }
 
-        // Return placeholder if API call fails
-        return@withContext createPlaceholderBookItem(bookDocumentId)
+        return@withContext createPlaceholder(bookDocId)
     }
 
-    private fun createPlaceholderBookItem(bookDocumentId: String): BookItem {
+    private fun createPlaceholder(bookDocId: String): BookItem {
         return BookItem(
-            id = bookDocumentId,
+            id = bookDocId,
             title = "Unknown Book",
             authors = emptyList(),
             description = "",
@@ -220,37 +249,36 @@ class ProfileActivity : AppCompatActivity() {
         )
     }
 
-    private fun extractGoogleBooksId(bookIdField: Any?): String? = when (bookIdField) {
+    private fun getBookId(bookIdField: Any?): String? = when (bookIdField) {
         is Long -> bookIdField.toString()
         is String -> bookIdField
         else -> null
     }
 
-    private fun createBookItemFromVolumeInfo(bookDocumentId: String, volumeInfo: Map<String, Any>): BookItem {
+    private fun createBook(bookDocId: String, volumeInfo: Map<String, Any>): BookItem {
         val categories = when (val cats = volumeInfo["categories"]) {
             is List<*> -> cats.filterIsInstance<String>()
-            is String -> parseCategoriesFromString(cats)
+            is String -> parseCategories(cats)
             else -> emptyList()
         }
 
-        // Clean up description - remove HTML tags and extra whitespace
-        val rawDescription = volumeInfo["description"] as? String ?: ""
-        val cleanDescription = cleanBookDescription(rawDescription)
+        val rawDesc = volumeInfo["description"] as? String ?: ""
+        val cleanDesc = cleanDescription(rawDesc)
 
         return BookItem(
-            id = bookDocumentId,
+            id = bookDocId,
             title = volumeInfo["title"] as? String ?: "Unknown Title",
             authors = (volumeInfo["authors"] as? List<String>) ?: emptyList(),
-            description = cleanDescription,
+            description = cleanDesc,
             averageRating = (volumeInfo["averageRating"] as? Double) ?: 0.0,
             ratingsCount = (volumeInfo["ratingsCount"] as? Int) ?: 0,
             categories = categories,
-            thumbnailUrl = extractThumbnailUrl(volumeInfo)
+            thumbnailUrl = getThumbnail(volumeInfo)
         )
     }
 
-    // For some reason googlebooks API sends desc with html tags when searched using Id so well...
-    private fun cleanBookDescription(description: String): String {
+    // Another difference with searching by book name vs book id is the formatting of the description
+    private fun cleanDescription(description: String): String {
         return description
             .replace("<br>", "\n")
             .replace("<br/>", "\n")
@@ -263,12 +291,12 @@ class ProfileActivity : AppCompatActivity() {
             .trim()
     }
 
-    private fun parseCategoriesFromString(categoriesString: String): List<String> = when {
+    private fun parseCategories(categoriesString: String): List<String> = when {
         categoriesString.contains(",") -> categoriesString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         else -> listOf(categoriesString.trim())
     }
 
-    private fun extractThumbnailUrl(volumeInfo: Map<String, Any>): String {
+    private fun getThumbnail(volumeInfo: Map<String, Any>): String {
         val imageLinks = volumeInfo["imageLinks"] as? Map<String, Any>
         val baseUrl = imageLinks?.let { links ->
             listOf("thumbnail", "smallThumbnail", "medium", "large", "extraLarge", "small")
@@ -276,10 +304,10 @@ class ProfileActivity : AppCompatActivity() {
                 .firstOrNull { it.isNotEmpty() }
         } ?: ""
 
-        return if (baseUrl.isEmpty()) "" else enhanceGoogleBooksUrl(baseUrl)
+        return if (baseUrl.isEmpty()) "" else enhanceUrl(baseUrl)
     }
 
-    private fun enhanceGoogleBooksUrl(url: String): String {
+    private fun enhanceUrl(url: String): String {
         var enhancedUrl = url.replace("http://", "https://").replace("&edge=curl", "")
 
         when {
@@ -298,11 +326,11 @@ class ProfileActivity : AppCompatActivity() {
         return enhancedUrl
     }
 
-    private fun updateFavoritesUI(loadedBooks: List<BookItem>) {
-        if (loadedBooks.isNotEmpty()) {
+    private fun updateUI(books: List<BookItem>) {
+        if (books.isNotEmpty()) {
             favoriteBooks.clear()
-            favoriteBooks.addAll(loadedBooks)
-            favoritesAdapter.updateFavorites(loadedBooks)
+            favoriteBooks.addAll(books)
+            favoritesAdapter.updateFavorites(books)
             binding.favoritesRv.visibility = android.view.View.VISIBLE
             binding.noFavoritesTv.visibility = android.view.View.GONE
             hideLoading()
@@ -313,7 +341,8 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    private fun openBookDetails(book: BookItem) {
+    // Send to ViewBookActivity
+    private fun openBook(book: BookItem) {
         startActivity(Intent(this, ViewBookActivity::class.java).apply {
             putExtra(ViewBookActivity.TITLE_KEY, book.title)
             putExtra(ViewBookActivity.AUTHOR_KEY, book.authors.joinToString(", "))
@@ -326,9 +355,20 @@ class ProfileActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupClickListeners() {
+    private fun setupClicks() {
         binding.updateProfileBtn.setOnClickListener { updateProfile() }
         binding.logoutBtn.setOnClickListener { logout() }
+
+        binding.profileBannerIv.setOnClickListener {
+            refreshBanner()
+        }
+    }
+
+    private fun refreshBanner() {
+        if (favoriteBooks.isNotEmpty()) {
+            setBanner(favoriteBooks)
+            Toast.makeText(this, "Banner refreshed!", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun updateProfile() {
@@ -342,26 +382,43 @@ class ProfileActivity : AppCompatActivity() {
             return
         }
 
-        UsersDatabase.update(currentUser.uid, mapOf(
-            "username" to newUsername,
-            "bio" to newBio,
-            "date_updated" to com.google.firebase.Timestamp.now()
-        )).addOnSuccessListener {
-            Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
-        }.addOnFailureListener { e ->
-            Toast.makeText(this, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        showLoading()
+
+        val profileUpdates = UserProfileChangeRequest.Builder()
+            .setDisplayName(newUsername)
+            .build()
+
+        currentUser.updateProfile(profileUpdates)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    UsersDatabase.update(currentUser.uid, mapOf(
+                        "username" to newUsername,
+                        "bio" to newBio,
+                        "date_updated" to com.google.firebase.Timestamp.now()
+                    )).addOnSuccessListener {
+                        hideLoading()
+                        Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+                        loadUser()
+                    }.addOnFailureListener { e ->
+                        hideLoading()
+                        Toast.makeText(this, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    hideLoading()
+                    Toast.makeText(this, "Failed to update auth profile", Toast.LENGTH_SHORT).show()
+                }
+            }
     }
 
     private fun logout() {
         auth.signOut()
         googleSignInClient.signOut().addOnCompleteListener {
-            navigateToLogin()
+            goToLogin()
             Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun navigateToLogin() {
+    private fun goToLogin() {
         startActivity(Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })
@@ -380,6 +437,8 @@ class ProfileActivity : AppCompatActivity() {
     )
 }
 
+// So we can use await
+// For firestore calls
 suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T {
     return suspendCancellableCoroutine { continuation ->
         addOnCompleteListener { task ->
@@ -392,6 +451,7 @@ suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T {
     }
 }
 
+// For retrofit calls
 suspend fun <T> Call<T>.await(): Response<T> {
     return suspendCancellableCoroutine { continuation ->
         enqueue(object : Callback<T> {

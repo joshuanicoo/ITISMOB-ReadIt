@@ -98,4 +98,18 @@ class ReviewAdapter(private val data: ArrayList<ReviewModel>) : RecyclerView.Ada
     fun hasReviewsWithComments(): Boolean {
         return filteredData.isNotEmpty()
     }
+
+    // Helper method to update a review's user data
+    fun updateReviewUserData(userId: String, username: String, profilePicture: String?) {
+        for (i in data.indices) {
+            if (data[i].userId == userId) {
+                // Update the review with user data
+                data[i] = data[i].copy(
+                    username = username,
+                    userProfilePicture = profilePicture
+                )
+            }
+        }
+        notifyDataSetChanged()
+    }
 }
