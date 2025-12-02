@@ -19,7 +19,6 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.appcompat.widget.SearchView
-
             android:id="@+id/bookSv"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,10 +73,28 @@
                     tools:listitem="@layout/books_card_layout">
 
                 </androidx.recyclerview.widget.RecyclerView>
+
             </LinearLayout>
         </ScrollView>
 
     </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/fabScrollUp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="Top"
+        android:visibility="gone"
+        app:icon="@drawable/baseline_arrow_upward_24"
+        app:iconPadding="8dp"
+        app:iconTint="@color/white"
+        app:backgroundTint="@color/main_green"
+        android:textColor="@color/white"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="8dp"
+        app:cornerRadius="20dp" />
 
     <LinearLayout
         android:id="@+id/loadingContainer"
@@ -109,28 +126,28 @@
             android:orientation="vertical"
             android:gravity="center">
 
-        <TextView
-            android:id="@+id/quoteText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Loading your next great read..."
-            android:textSize="16sp"
-            android:textStyle="italic"
-            android:textColor="@color/gray"
-            android:gravity="center"
-            android:lineSpacingExtra="4sp" />
+            <TextView
+                android:id="@+id/quoteText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Loading your next great read..."
+                android:textSize="16sp"
+                android:textStyle="italic"
+                android:textColor="@color/gray"
+                android:gravity="center"
+                android:lineSpacingExtra="4sp" />
 
-        <TextView
-            android:id="@+id/quoteAuthor"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Author"
-            android:textSize="14sp"
-            android:textColor="@color/gray"
-            android:gravity="center"
-            android:layout_marginTop="8dp" />
+            <TextView
+                android:id="@+id/quoteAuthor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Author"
+                android:textSize="14sp"
+                android:textColor="@color/gray"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
 
-    </LinearLayout>
+        </LinearLayout>
 
     </LinearLayout>
 

@@ -21,8 +21,6 @@ class HomeGenreAdapter(
             false
         )
         val viewHolder = HomeGenreViewHolder(itemViewBinding)
-
-        // Set click listener on the entire genre item
         itemViewBinding.root.setOnClickListener {
             val position = viewHolder.adapterPosition
             if (position != RecyclerView.NO_POSITION) {
@@ -35,8 +33,6 @@ class HomeGenreAdapter(
 
     override fun onBindViewHolder(holder: HomeGenreViewHolder, position: Int) {
         holder.bindData(data[position])
-
-        // Highlight selected genre - style the MaterialCardView instead
         if (position == selectedPosition) {
             holder.viewBinding.genreCardView.setCardBackgroundColor(
                 ContextCompat.getColor(holder.viewBinding.root.context, R.color.main_green)
@@ -44,7 +40,7 @@ class HomeGenreAdapter(
             holder.viewBinding.genreTv.setTextColor(
                 ContextCompat.getColor(holder.viewBinding.root.context, R.color.white)
             )
-            holder.viewBinding.genreCardView.strokeWidth = 0 // Remove border when selected
+            holder.viewBinding.genreCardView.strokeWidth = 0
         } else {
             holder.viewBinding.genreCardView.setCardBackgroundColor(
                 ContextCompat.getColor(holder.viewBinding.root.context, R.color.white)
@@ -52,7 +48,7 @@ class HomeGenreAdapter(
             holder.viewBinding.genreTv.setTextColor(
                 ContextCompat.getColor(holder.viewBinding.root.context, R.color.black)
             )
-            holder.viewBinding.genreCardView.strokeWidth = 3 // Add border when not selected
+            holder.viewBinding.genreCardView.strokeWidth = 3
         }
     }
 
@@ -63,7 +59,7 @@ class HomeGenreAdapter(
     fun updateGenres(newGenres: List<String>) {
         data.clear()
         data.addAll(newGenres)
-        selectedPosition = 0 // Reset selection to "All"
+        selectedPosition = 0
         notifyDataSetChanged()
     }
 

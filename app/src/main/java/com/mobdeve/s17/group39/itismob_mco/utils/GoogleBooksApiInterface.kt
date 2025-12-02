@@ -7,20 +7,24 @@ import retrofit2.http.Query
 
 interface GoogleBooksApiInterface {
     @GET("volumes?q=subject:fiction&maxResults=40&printType=books&orderBy=relevance")
-    fun getBooks(): Call<GoogleBooksResponse>
+    fun getBooks(
+        @Query("startIndex") startIndex: Int = 0
+    ): Call<GoogleBooksResponse>
 
     @GET("volumes")
     fun searchBooks(
         @Query("q") query: String,
         @Query("maxResults") maxResults: Int = 40,
-        @Query("printType") printType: String = "books"
+        @Query("printType") printType: String = "books",
+        @Query("startIndex") startIndex: Int = 0
     ): Call<GoogleBooksResponse>
 
     @GET("volumes")
     fun getBookByISBN(
         @Query("q") isbn: String,
         @Query("maxResults") maxResults: Int = 40,
-        @Query("printType") printType: String = "books"
+        @Query("printType") printType: String = "books",
+        @Query("startIndex") startIndex: Int = 0
     ): Call<GoogleBooksResponse>
 
     @GET("volumes/{volumeId}")

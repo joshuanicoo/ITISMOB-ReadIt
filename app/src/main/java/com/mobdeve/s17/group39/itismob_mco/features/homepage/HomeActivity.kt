@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ExperimentalGetImage
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.mobdeve.s17.group39.itismob_mco.databinding.HomeActivityBinding
 import com.mobdeve.s17.group39.itismob_mco.features.profile.ProfileActivity
 import com.mobdeve.s17.group39.itismob_mco.features.savedbooks.SavedListsActivity
@@ -29,6 +30,7 @@ import kotlin.collections.HashSet
 import android.widget.AutoCompleteTextView
 import android.view.View
 import android.graphics.Color
+import android.view.animation.AnimationUtils
 
 @ExperimentalGetImage
 class HomeActivity : AppCompatActivity() {
@@ -38,12 +40,24 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var apiInterface: GoogleBooksApiInterface
     private lateinit var handler: Handler
     private lateinit var genreAdapter: HomeGenreAdapter
-    private var allBooks: List<Volume> = emptyList()
+    private var allBooks: MutableList<Volume> = mutableListOf()
     private var currentQuery: String = ""
     private var currentGenre: String? = null
     private var selectedGenrePosition: Int = 0
     private var isFilteringFromSearch: Boolean = false
     private var scannedISBN: String? = null
+    private var currentStartIndex: Int = 0
+    private var maxResults: Int = 40
+    private var totalItems: Int = 0
+    private var hasMoreBooks: Boolean = true
+    private var isSearching: Boolean = false
+    private var isScannedSearch: Boolean = false
+    private var isLoadingMore: Boolean = false
+    private var isLastPage: Boolean = false
+    private var lastVisibleItemPosition: Int = 0
+    private var totalItemCount: Int = 0
+    private var scrollThreshold: Int = 10
+    private var isFabVisible: Boolean = false
 
     private val scannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -65,8 +79,9 @@ class HomeActivity : AppCompatActivity() {
         setupClickListeners()
         setupRecyclerView()
         setupGenreRecyclerView()
+        setupScrollUpButton()
         showLoading()
-        getBooks()
+        getBooks(0)
 
         handler = Handler(Looper.getMainLooper())
 
@@ -95,16 +110,20 @@ class HomeActivity : AppCompatActivity() {
                     currentGenre = null
                     selectedGenrePosition = 0
                     genreAdapter.setSelectedPosition(0)
+                    isSearching = true
+                    isScannedSearch = false
+                    resetPagination()
 
-                    // Show toast if ISBN is detected
                     if (isLikelyISBN(searchText)) {
                         Toast.makeText(this@HomeActivity, "Searching by ISBN...", Toast.LENGTH_SHORT).show()
                     }
 
-                    searchBooks(searchText, 40, "books")
+                    searchBooks(searchText, 0)
                 } else {
                     currentQuery = ""
-                    getBooks()
+                    isSearching = false
+                    resetPagination()
+                    getBooks(0)
                 }
                 return true
             }
@@ -118,28 +137,136 @@ class HomeActivity : AppCompatActivity() {
                         currentGenre = null
                         selectedGenrePosition = 0
                         genreAdapter.setSelectedPosition(0)
-                        searchBooks(searchText, 40, "books")
+                        isSearching = true
+                        isScannedSearch = false
+                        resetPagination()
+                        searchBooks(searchText, 0)
                     }, 500)
                 } else {
                     currentQuery = ""
-                    getBooks()
+                    isSearching = false
+                    resetPagination()
+                    getBooks(0)
                 }
                 return true
             }
         })
     }
 
+    private fun setupScrollUpButton() {
+        hideScrollUpButton()
+        binding.fabScrollUp.setOnClickListener {
+            scrollToTop()
+        }
+    }
+
+    private fun showScrollUpButton() {
+        if (!isFabVisible) {
+            isFabVisible = true
+            binding.fabScrollUp.visibility = View.VISIBLE
+            binding.fabScrollUp.startAnimation(
+                AnimationUtils.loadAnimation(this, android.R.anim.fade_in)
+            )
+        }
+    }
+
+    private fun hideScrollUpButton() {
+        if (isFabVisible) {
+            isFabVisible = false
+            binding.fabScrollUp.startAnimation(
+                AnimationUtils.loadAnimation(this, android.R.anim.fade_out)
+            )
+            binding.fabScrollUp.visibility = View.GONE
+        }
+    }
+
+    private fun scrollToTop() {
+        binding.bookListRv.smoothScrollToPosition(0)
+        binding.genreListRv.smoothScrollToPosition(0)
+        Handler(Looper.getMainLooper()).postDelayed({
+            hideScrollUpButton()
+        }, 300)
+    }
+
+    private fun setupRecyclerView() {
+        this.adapter = HomeAdapter(mutableListOf())
+        this.binding.bookListRv.adapter = adapter
+
+        val layoutManager = GridLayoutManager(this, 2)
+        this.binding.bookListRv.layoutManager = layoutManager
+
+        // CRITICAL: Disable item animations to prevent flickering
+        this.binding.bookListRv.itemAnimator = null
+
+        // Also disable layout transitions
+        this.binding.bookListRv.setHasFixedSize(true)
+
+        // Set up scroll listener for infinite scrolling and scroll up button
+        this.binding.bookListRv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val layoutManager = recyclerView.layoutManager as GridLayoutManager
+                val visibleItemCount = layoutManager.childCount
+                val totalItemCount = layoutManager.itemCount
+                val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+                lastVisibleItemPosition = firstVisibleItemPosition
+                this@HomeActivity.totalItemCount = totalItemCount
+                if (firstVisibleItemPosition > scrollThreshold) {
+                    showScrollUpButton()
+                } else {
+                    hideScrollUpButton()
+                }
+                if (!isLoadingMore && hasMoreBooks) {
+                    if ((visibleItemCount + firstVisibleItemPosition + 5) >= totalItemCount
+                        && firstVisibleItemPosition >= 0
+                        && totalItemCount >= 10) {
+
+                        loadMoreBooks()
+                    }
+                }
+            }
+
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == RecyclerView.SCROLL_STATE_IDLE && lastVisibleItemPosition == 0) {
+                    hideScrollUpButton()
+                }
+            }
+        })
+    }
+    private fun loadMoreBooks() {
+        if (isLoadingMore || isLastPage) return
+
+        isLoadingMore = true
+        adapter.setLoading(true)
+
+        currentStartIndex += maxResults
+
+        if (isSearching) {
+            searchBooks(currentQuery, currentStartIndex)
+        } else {
+            getBooks(currentStartIndex)
+        }
+    }
+
+    private fun resetPagination() {
+        allBooks.clear()
+        currentStartIndex = 0
+        totalItems = 0
+        hasMoreBooks = true
+        isLastPage = false
+        isLoadingMore = false
+        adapter.setLoading(false)
+        binding.bookListRv.scrollToPosition(0)
+        hideScrollUpButton()
+    }
+
     private fun isLikelyISBN(query: String): Boolean {
-        // Remove common separators
         val cleanQuery = query.replace(" ", "").replace("-", "").replace(".", "")
 
-        // Check for ISBN-10 (10 digits, possibly ending with X)
         val isbn10Pattern = Regex("^\\d{9}[\\dX]\$", RegexOption.IGNORE_CASE)
-
-        // Check for ISBN-13 (13 digits)
         val isbn13Pattern = Regex("^\\d{13}\$")
-
-        // Check for ISBN with prefix
         val isbnWithPrefixPattern = Regex("^(isbn:|ISBN:)?\\s*\\d{9}[\\dX]\$", RegexOption.IGNORE_CASE)
         val isbn13WithPrefixPattern = Regex("^(isbn:|ISBN:)?\\s*\\d{13}\$", RegexOption.IGNORE_CASE)
 
@@ -147,12 +274,6 @@ class HomeActivity : AppCompatActivity() {
                 isbn13Pattern.matches(cleanQuery) ||
                 isbnWithPrefixPattern.matches(cleanQuery) ||
                 isbn13WithPrefixPattern.matches(cleanQuery)
-    }
-
-    private fun setupRecyclerView() {
-        this.adapter = HomeAdapter(mutableListOf())
-        this.binding.bookListRv.adapter = adapter
-        this.binding.bookListRv.layoutManager = GridLayoutManager(this, 2)
     }
 
     private fun setupGenreRecyclerView() {
@@ -172,11 +293,7 @@ class HomeActivity : AppCompatActivity() {
         if (genre == "All") {
             currentGenre = null
             isFilteringFromSearch = false
-            if (currentQuery.isNotEmpty()) {
-                adapter.updateData(allBooks)
-            } else {
-                adapter.updateData(allBooks)
-            }
+            adapter.updateData(allBooks)
         } else {
             currentGenre = genre
             isFilteringFromSearch = (currentQuery.isNotEmpty())
@@ -192,6 +309,9 @@ class HomeActivity : AppCompatActivity() {
         if (filteredBooks.isEmpty()) {
             Toast.makeText(this, "No books found in $genre category", Toast.LENGTH_SHORT).show()
         }
+
+        // Hide scroll up button when filtering
+        hideScrollUpButton()
     }
 
     private fun hasMatchingGenre(volume: Volume, genre: String): Boolean {
@@ -247,95 +367,116 @@ class HomeActivity : AppCompatActivity() {
         LoadingUtils.hideLoading(binding.loadingContainer, binding.bookListRv)
     }
 
-    private fun getBooks() {
-        val call = apiInterface.getBooks()
+    private fun getBooks(startIndex: Int) {
+        if (startIndex == 0) {
+            showLoading()
+        }
+
+        val call = apiInterface.getBooks(startIndex)
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
-                if (response.isSuccessful && response.body() != null) {
-                    data = response.body()!!
-
-                    val items = data.items
-                    if (items != null) {
-                        allBooks = items
-                        adapter.updateData(items)
-                        val genres = extractGenresFromBooks(items)
-                        genreAdapter.updateGenres(genres)
-                    } else {
-                        allBooks = emptyList()
-                        adapter.updateData(emptyList())
-                        genreAdapter.updateGenres(listOf("All"))
-                        Toast.makeText(this@HomeActivity, "No books found", Toast.LENGTH_SHORT).show()
-                    }
-
-                    hideLoading()
-                } else {
-                    hideLoading()
-                    Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
-                }
+                handleResponse(response, startIndex)
             }
+
             override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
                 t.printStackTrace()
-                hideLoading()
+                if (startIndex == 0) {
+                    hideLoading()
+                } else {
+                    isLoadingMore = false
+                    adapter.setLoading(false)
+                }
                 Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
-    private fun searchBooks(query: String, size: Int, printType: String) {
-        showLoading()
+    private fun searchBooks(query: String, startIndex: Int) {
+        if (startIndex == 0) {
+            showLoading()
+        }
 
-        // Check if the query looks like an ISBN
-        if (isLikelyISBN(query)) {
-            // Use dedicated ISBN search
+        if (isLikelyISBN(query) && !isScannedSearch) {
             val cleanISBN = query.replace(" ", "").replace("-", "").replace(".", "")
                 .replace("isbn:", "", ignoreCase = true)
                 .replace("ISBN:", "", ignoreCase = true)
 
-            searchByISBNDedicated(cleanISBN)
+            searchByISBNDedicated(cleanISBN, startIndex)
         } else {
-            // Use regular search
-            val call = apiInterface.searchBooks(query, size, printType)
+            val call = apiInterface.searchBooks(query, maxResults, "books", startIndex)
             call.enqueue(object : Callback<GoogleBooksResponse> {
                 override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
-                    if (response.isSuccessful && response.body() != null) {
-                        data = response.body()!!
-                        val items = data.items
-                        if (items != null) {
-                            allBooks = items
-                            val genres = extractGenresFromBooks(items)
-                            genreAdapter.updateGenres(genres)
-                            if (currentGenre != null && isFilteringFromSearch) {
-                                filterBooksByGenre(currentGenre!!)
-                            } else {
-                                adapter.updateData(items)
-                            }
-                        } else {
-                            allBooks = emptyList()
-                            adapter.updateData(emptyList())
-                            genreAdapter.updateGenres(listOf("All"))
-                            Toast.makeText(this@HomeActivity, "No books found for '$query'", Toast.LENGTH_SHORT).show()
-                        }
-                        hideLoading()
-                    } else {
-                        hideLoading()
-                        Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
-                    }
+                    handleResponse(response, startIndex)
                 }
 
                 override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
                     t.printStackTrace()
-                    hideLoading()
+                    if (startIndex == 0) {
+                        hideLoading()
+                    } else {
+                        isLoadingMore = false
+                        adapter.setLoading(false)
+                    }
                     Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
                 }
             })
         }
     }
 
-    private fun searchByISBNDedicated(isbn: String) {
-        Log.d("ISBN_SEARCH", "Searching by dedicated ISBN: $isbn")
+    private fun handleResponse(response: Response<GoogleBooksResponse>, startIndex: Int) {
+        if (response.isSuccessful && response.body() != null) {
+            data = response.body()!!
+            totalItems = data.totalItems
 
-        // First try the dedicated ISBN endpoint
-        val call = apiInterface.getBookByISBN(isbn, 1, "books")
+            val items = data.items
+            if (items != null && items.isNotEmpty()) {
+                if (startIndex == 0) {
+                    allBooks.clear()
+                }
+                allBooks.addAll(items)
+
+                // Check if there are more books to load
+                hasMoreBooks = (startIndex + items.size) < totalItems
+                isLastPage = !hasMoreBooks
+
+                val genres = extractGenresFromBooks(allBooks)
+                genreAdapter.updateGenres(genres)
+
+                if (currentGenre != null && isFilteringFromSearch) {
+                    filterBooksByGenre(currentGenre!!)
+                } else {
+                    adapter.updateData(allBooks)
+                }
+            } else {
+                if (startIndex == 0) {
+                    allBooks.clear()
+                    adapter.updateData(emptyList())
+                    genreAdapter.updateGenres(listOf("All"))
+                    Toast.makeText(this@HomeActivity, "No books found", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            if (startIndex == 0) {
+                hideLoading()
+            }
+        } else {
+            if (startIndex == 0) {
+                hideLoading()
+            }
+            Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
+        }
+
+        // Reset loading state for infinite scroll
+        if (startIndex > 0) {
+            isLoadingMore = false
+            adapter.setLoading(false)
+        }
+    }
+
+    private fun searchByISBNDedicated(isbn: String, startIndex: Int) {
+        Log.d("ISBN_SEARCH", "Searching by dedicated ISBN: $isbn, startIndex: $startIndex")
+
+        val call = apiInterface.getBookByISBN(isbn, 1, "books", startIndex)
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful) {
@@ -345,43 +486,48 @@ class HomeActivity : AppCompatActivity() {
 
                         val items = body.items
                         if (items != null && items.isNotEmpty()) {
-                            allBooks = items
+                            allBooks = items.toMutableList()
                             val genres = extractGenresFromBooks(items)
                             genreAdapter.updateGenres(genres)
                             adapter.updateData(items)
-                            hideLoading()
+                            if (startIndex == 0) {
+                                hideLoading()
+                            }
                             return
                         }
 
-                        // If dedicated search fails, fall back to general search with ISBN format
                         Log.d("ISBN_SEARCH", "Dedicated search returned no items, trying fallback")
-                        searchBooksWithFallbackFormats(isbn)
+                        searchBooksWithFallbackFormats(isbn, startIndex)
                     } else {
-                        hideLoading()
-                        searchBooksWithFallbackFormats(isbn)
+                        if (startIndex == 0) {
+                            hideLoading()
+                        }
+                        searchBooksWithFallbackFormats(isbn, startIndex)
                     }
                 } else {
-                    hideLoading()
-                    searchBooksWithFallbackFormats(isbn)
+                    if (startIndex == 0) {
+                        hideLoading()
+                    }
+                    searchBooksWithFallbackFormats(isbn, startIndex)
                 }
             }
 
             override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                hideLoading()
+                if (startIndex == 0) {
+                    hideLoading()
+                }
                 Log.d("ISBN_SEARCH", "Dedicated ISBN search failed: ${t.message}")
-                searchBooksWithFallbackFormats(isbn)
+                searchBooksWithFallbackFormats(isbn, startIndex)
             }
         })
     }
 
-    private fun searchBooksWithFallbackFormats(isbn: String) {
+    private fun searchBooksWithFallbackFormats(isbn: String, startIndex: Int) {
         val formats = mutableListOf<String>()
 
-        // Add different ISBN formats
         formats.add("isbn:$isbn")
         formats.add("ISBN:$isbn")
 
-        // Try conversion if applicable
         if (isbn.length == 10) {
             val isbn13 = convertISBN10ToISBN13(isbn)
             if (isbn13 != null) {
@@ -394,27 +540,33 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        // Also try direct search
         formats.add(isbn)
 
         Log.d("ISBN_SEARCH", "Trying fallback formats: $formats")
-        tryISBNFormatWithFallback(formats, 0)
+        tryISBNFormatWithFallback(formats, 0, startIndex)
     }
 
-    private fun tryISBNFormatWithFallback(formats: List<String>, index: Int) {
+    private fun tryISBNFormatWithFallback(formats: List<String>, index: Int, startIndex: Int) {
         if (index >= formats.size) {
+            allBooks.clear()
             adapter.updateData(emptyList())
             val genres = extractGenresFromBooks(emptyList())
             genreAdapter.updateGenres(genres)
+            if (startIndex == 0) {
+                hideLoading()
+            }
             Toast.makeText(this@HomeActivity, "No book found with ISBN: $scannedISBN", Toast.LENGTH_LONG).show()
             return
         }
 
         val currentFormat = formats[index]
-        Log.d("ISBN_SEARCH", "Trying format $index: $currentFormat")
+        Log.d("ISBN_SEARCH", "Trying format $index: $currentFormat, startIndex: $startIndex")
 
-        showLoading()
-        val call = apiInterface.searchBooks(currentFormat, 1, "books")
+        if (startIndex == 0) {
+            showLoading()
+        }
+
+        val call = apiInterface.searchBooks(currentFormat, 1, "books", startIndex)
         call.enqueue(object : Callback<GoogleBooksResponse> {
             override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
                 if (response.isSuccessful) {
@@ -424,7 +576,7 @@ class HomeActivity : AppCompatActivity() {
 
                         val items = body.items
                         if (items != null && items.isNotEmpty()) {
-                            allBooks = items
+                            allBooks = items.toMutableList()
                             adapter.updateData(items)
 
                             val genres = extractGenresFromBooks(items)
@@ -432,31 +584,48 @@ class HomeActivity : AppCompatActivity() {
 
                             val volume = items[0]
                             Log.d("ISBN_SEARCH", "Found book with format $currentFormat: ${volume.volumeInfo.title}")
-                            openBookDetailsDirectly(volume)
-                            hideLoading()
+
+                            if (isScannedSearch) {
+                                openBookDetailsDirectly(volume)
+                            } else {
+                                Toast.makeText(this@HomeActivity, "Found: ${volume.volumeInfo.title}", Toast.LENGTH_SHORT).show()
+                            }
+                            if (startIndex == 0) {
+                                hideLoading()
+                            }
                         } else if (body.totalItems > 0) {
                             Log.d("ISBN_SEARCH", "Format $currentFormat has totalItems > 0 but no items, trying next format")
-                            hideLoading()
-                            tryISBNFormatWithFallback(formats, index + 1)
+                            if (startIndex == 0) {
+                                hideLoading()
+                            }
+                            tryISBNFormatWithFallback(formats, index + 1, startIndex)
                         } else {
                             Log.d("ISBN_SEARCH", "Format $currentFormat returned 0 results")
-                            hideLoading()
-                            tryISBNFormatWithFallback(formats, index + 1)
+                            if (startIndex == 0) {
+                                hideLoading()
+                            }
+                            tryISBNFormatWithFallback(formats, index + 1, startIndex)
                         }
                     } else {
-                        hideLoading()
-                        tryISBNFormatWithFallback(formats, index + 1)
+                        if (startIndex == 0) {
+                            hideLoading()
+                        }
+                        tryISBNFormatWithFallback(formats, index + 1, startIndex)
                     }
                 } else {
-                    hideLoading()
-                    tryISBNFormatWithFallback(formats, index + 1)
+                    if (startIndex == 0) {
+                        hideLoading()
+                    }
+                    tryISBNFormatWithFallback(formats, index + 1, startIndex)
                 }
             }
 
             override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
-                hideLoading()
+                if (startIndex == 0) {
+                    hideLoading()
+                }
                 Log.d("ISBN_SEARCH", "Format $currentFormat failed: ${t.message}")
-                tryISBNFormatWithFallback(formats, index + 1)
+                tryISBNFormatWithFallback(formats, index + 1, startIndex)
             }
         })
     }
@@ -512,7 +681,6 @@ class HomeActivity : AppCompatActivity() {
             }
 
             enhancedUrl.contains("books.google.com") -> {
-                // For direct Google Books links
                 enhancedUrl = enhancedUrl.replace("&printsec=frontcover", "&printsec=frontcover&img=1&zoom=2")
                 if (!enhancedUrl.contains("img=")) {
                     enhancedUrl += if (enhancedUrl.contains("?")) "&img=1" else "?img=1"
@@ -523,7 +691,6 @@ class HomeActivity : AppCompatActivity() {
             }
 
             enhancedUrl.contains("gstatic.com") -> {
-                // No changes needed for gstatic.com links
             }
         }
 
@@ -554,15 +721,17 @@ class HomeActivity : AppCompatActivity() {
     private fun searchBookByIsbn(isbn: String) {
         if (isbn.isNotEmpty()) {
             scannedISBN = isbn
+            isScannedSearch = true
+            resetPagination()
             Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
             val cleanISBN = isbn.replace(" ", "").replace("-", "")
-            tryMultipleISBNFormats(cleanISBN)
+            tryMultipleISBNFormats(cleanISBN, 0)
         } else {
             Toast.makeText(this, "Invalid ISBN scanned", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun tryMultipleISBNFormats(cleanISBN: String) {
+    private fun tryMultipleISBNFormats(cleanISBN: String, startIndex: Int) {
         val isbnFormats = mutableListOf<String>()
         val isbnLength = cleanISBN.length
 
@@ -591,7 +760,7 @@ class HomeActivity : AppCompatActivity() {
 
         Log.d("ISBN_SEARCH", "Trying ISBN formats: $isbnFormats")
         if (isbnFormats.isNotEmpty()) {
-            tryISBNFormatWithFallback(isbnFormats, 0)
+            tryISBNFormatWithFallback(isbnFormats, 0, startIndex)
         }
     }
 
