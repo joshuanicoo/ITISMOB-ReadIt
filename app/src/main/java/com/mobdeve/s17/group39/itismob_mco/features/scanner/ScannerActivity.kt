@@ -214,7 +214,7 @@ class ScannerActivity : AppCompatActivity() {
 
         try {
             cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
-            cameraRetryCount = 0 // reset on successss
+            cameraRetryCount = 0 // reset on success
             Toast.makeText(this, "Camera started successfully", Toast.LENGTH_SHORT).show()
         } catch (exc: Exception) {
             handleCameraError()
@@ -342,49 +342,107 @@ class ScannerActivity : AppCompatActivity() {
     private fun handleScannedBarcode(barcodeValue: String) {
         runOnUiThread {
             val cleanIsbn = barcodeValue.replace("[^\\dX]".toRegex(), "")
+
+            // Check if this is a valid ISBN
             if (isValidIsbn(cleanIsbn)) {
-                val resultIntent = Intent().apply {
-                    putExtra(SCANNED_ISBN_RESULT, cleanIsbn)
+                // Additional validation: Check if it follows ISBN format rules
+                val validatedIsbn = validateAndNormalizeIsbn(cleanIsbn)
+                if (validatedIsbn != null) {
+                    val resultIntent = Intent().apply {
+                        putExtra(SCANNED_ISBN_RESULT, validatedIsbn)
+                    }
+                    setResult(RESULT_OK, resultIntent)
+                    finish()
+                } else {
+                    isProcessing = false
+                    Toast.makeText(this, "Scanned barcode is not a valid ISBN: $cleanIsbn", Toast.LENGTH_SHORT).show()
                 }
-                setResult(RESULT_OK, resultIntent)
-                finish()
             } else {
                 isProcessing = false
-                Toast.makeText(this, "Invalid ISBN format: $cleanIsbn", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Invalid barcode format. Please scan an ISBN.", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun isValidIsbn(isbn: String): Boolean {
-        val cleanIsbn = isbn.replace("[^\\dX]".toRegex(), "")
-        return when (cleanIsbn.length) {
-            10 -> isValidIsbn10(cleanIsbn)
-            13 -> isValidIsbn13(cleanIsbn)
-            else -> false
+    private fun validateAndNormalizeIsbn(barcodeValue: String): String? {
+        // Remove all non-digit characters except X (for ISBN-10 check digit)
+        val cleanValue = barcodeValue.replace("[^\\dX]".toRegex(), "")
+
+        // Check length - ISBN must be 10 or 13 digits
+        if (cleanValue.length !in listOf(10, 13)) {
+            return null
         }
+
+        // Validate based on length
+        return when (cleanValue.length) {
+            10 -> {
+                // Validate ISBN-10
+                if (isValidIsbn10(cleanValue)) {
+                    cleanValue
+                } else {
+                    null
+                }
+            }
+            13 -> {
+                // Validate ISBN-13
+                if (isValidIsbn13(cleanValue)) {
+                    // Check if it's a book ISBN (starts with 978 or 979)
+                    if (cleanValue.startsWith("978") || cleanValue.startsWith("979")) {
+                        cleanValue
+                    } else {
+                        // Not a book ISBN (might be other EAN-13)
+                        null
+                    }
+                } else {
+                    null
+                }
+            }
+            else -> null
+        }
+    }
+
+    private fun isValidIsbn(isbn: String): Boolean {
+        return validateAndNormalizeIsbn(isbn) != null
     }
 
     private fun isValidIsbn10(isbn: String): Boolean {
         if (isbn.length != 10) return false
+
+        // Check first 9 characters are digits
+        for (i in 0 until 9) {
+            if (!isbn[i].isDigit()) return false
+        }
+
+        // Check last character is digit or X
+        val lastChar = isbn[9]
+        if (!lastChar.isDigit() && lastChar != 'X' && lastChar != 'x') return false
+
+        // Calculate checksum
         var sum = 0
         for (i in 0 until 9) {
             val digit = isbn[i] - '0'
-            if (digit < 0 || digit > 9) return false
             sum += (digit * (10 - i))
         }
-        val lastChar = isbn[9]
-        sum += if (lastChar == 'X') 10 else (lastChar - '0')
+
+        val checkDigit = if (lastChar == 'X' || lastChar == 'x') 10 else (lastChar - '0')
+        sum += checkDigit
+
         return sum % 11 == 0
     }
 
     private fun isValidIsbn13(isbn: String): Boolean {
         if (isbn.length != 13) return false
+
+        // Check all characters are digits
+        if (!isbn.all { it.isDigit() }) return false
+
+        // Calculate checksum
         var sum = 0
         for (i in isbn.indices) {
             val digit = isbn[i] - '0'
-            if (digit < 0 || digit > 9) return false
             sum += digit * if (i % 2 == 0) 1 else 3
         }
+
         return sum % 10 == 0
     }
 
