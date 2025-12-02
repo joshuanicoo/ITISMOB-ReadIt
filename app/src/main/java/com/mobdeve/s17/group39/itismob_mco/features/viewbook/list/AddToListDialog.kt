@@ -23,10 +23,6 @@ class AddToListDialog(
     private val currentUserId = auth.currentUser?.uid ?: ""
 
     fun show() {
-        if (currentUserId.isEmpty()) {
-            Toast.makeText(context, "Please log in to add books to lists", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         dialog = Dialog(context)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -99,9 +95,6 @@ class AddToListDialog(
 
     private fun addBookToList(documentId: String, listName: String) {
         ListsDatabase.addBookToList(documentId, bookId)
-            .addOnSuccessListener {
-                Toast.makeText(context, "Added to '$listName'", Toast.LENGTH_SHORT).show()
-            }
             .addOnFailureListener { e ->
                 Toast.makeText(context, "Failed to add to '$listName'", Toast.LENGTH_SHORT).show()
             }
@@ -109,9 +102,6 @@ class AddToListDialog(
 
     private fun removeBookFromList(documentId: String, listName: String) {
         ListsDatabase.removeBookFromList(documentId, bookId)
-            .addOnSuccessListener {
-                Toast.makeText(context, "Removed from '$listName'", Toast.LENGTH_SHORT).show()
-            }
             .addOnFailureListener { e ->
                 Toast.makeText(context, "Failed to remove from '$listName'", Toast.LENGTH_SHORT).show()
             }

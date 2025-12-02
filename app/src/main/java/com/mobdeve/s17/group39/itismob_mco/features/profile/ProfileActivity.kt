@@ -367,7 +367,6 @@ class ProfileActivity : AppCompatActivity() {
     private fun refreshBanner() {
         if (favoriteBooks.isNotEmpty()) {
             setBanner(favoriteBooks)
-            Toast.makeText(this, "Banner refreshed!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -414,7 +413,6 @@ class ProfileActivity : AppCompatActivity() {
         auth.signOut()
         googleSignInClient.signOut().addOnCompleteListener {
             goToLogin()
-            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
         }
     }
 

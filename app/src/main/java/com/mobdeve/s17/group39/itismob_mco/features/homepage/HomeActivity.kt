@@ -319,7 +319,6 @@ class HomeActivity : AppCompatActivity() {
                         }
                         hideLoading()
                         if (body.totalItems > 0) {
-                            Log.d("ISBN_SEARCH", "totalItems > 0 (${body.totalItems}) but items is null/empty")
                             Toast.makeText(this@HomeActivity, "Book found but data unavailable. Try searching by title.", Toast.LENGTH_LONG).show()
                         } else {
                             adapter.updateData(emptyList())
@@ -329,7 +328,6 @@ class HomeActivity : AppCompatActivity() {
                         }
                     } else {
                         hideLoading()
-                        Log.d("ISBN_SEARCH", "Response body is null")
                         Toast.makeText(this@HomeActivity, "Invalid response from server", Toast.LENGTH_SHORT).show()
                     }
                 } else {
@@ -439,7 +437,6 @@ class HomeActivity : AppCompatActivity() {
     private fun searchBookByIsbn(isbn: String) {
         if (isbn.isNotEmpty()) {
             scannedISBN = isbn
-            Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
             val cleanISBN = isbn.replace(" ", "").replace("-", "")
             tryMultipleISBNFormats(cleanISBN)
         } else {

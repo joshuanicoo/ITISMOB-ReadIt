@@ -228,10 +228,6 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun handleLike() {
-        if (userId.isEmpty()) {
-            Toast.makeText(this, "Please log in to like books", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         if (isLiked) {
             // Remove from favorites
@@ -239,7 +235,6 @@ class ViewBookActivity : AppCompatActivity() {
                 .addOnSuccessListener {
                     isLiked = false
                     updateLikeButton()
-                    Toast.makeText(this, "Removed from favorites", Toast.LENGTH_SHORT).show()
                     updateReviewLikeStatus()
                 }
                 .addOnFailureListener { e ->
@@ -251,7 +246,6 @@ class ViewBookActivity : AppCompatActivity() {
                 .addOnSuccessListener {
                     isLiked = true
                     updateLikeButton()
-                    Toast.makeText(this, "Added to favorites!", Toast.LENGTH_SHORT).show()
                     updateReviewLikeStatus() // Also update any existing review
                 }
                 .addOnFailureListener { e ->
@@ -451,7 +445,6 @@ class ViewBookActivity : AppCompatActivity() {
                     .addOnSuccessListener { docRef ->
                         val reviewId = docRef.id
                         addReviewToBook(reviewId)
-                        Toast.makeText(this, "Rating submitted!", Toast.LENGTH_SHORT).show()
                         loadReviews()
                     }
                     .addOnFailureListener { e ->
@@ -468,7 +461,6 @@ class ViewBookActivity : AppCompatActivity() {
     private fun updateRating(existing: ReviewModel, newRating: Float) {
         ReviewsDatabase.update(existing.id, mapOf("rating" to newRating))
             .addOnSuccessListener {
-                Toast.makeText(this, "Rating updated!", Toast.LENGTH_SHORT).show()
                 val pos = reviews.indexOfFirst { it.id == existing.id }
                 if (pos != -1) {
                     reviews[pos] = reviews[pos].copy(rating = newRating)
@@ -493,7 +485,6 @@ class ViewBookActivity : AppCompatActivity() {
                         reviewAdapter.notifyItemChanged(pos)
                     }
                 }
-            // Don't show error toast for this - it's not critical
         }
     }
 
@@ -666,14 +657,9 @@ class ViewBookActivity : AppCompatActivity() {
 
     private fun createList(name: String, dialog: Dialog) {
         val currentId = auth.currentUser?.uid ?: ""
-        if (currentId.isEmpty()) {
-            Toast.makeText(this, "Please log in first", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         ListsDatabase.createList(name, currentId)
             .addOnSuccessListener {
-                Toast.makeText(this, "List '$name' created!", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
                 showAddToListDialog() // Go back to add to list dialog
             }

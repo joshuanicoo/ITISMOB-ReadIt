@@ -74,7 +74,6 @@ class BooksInListActivity : AppCompatActivity() {
         val documentRef = ListsDatabase.getDocumentReference(currentListId)
         listListener = documentRef.addSnapshotListener { documentSnapshot, error ->
             if (error != null) {
-                Log.e(TAG, "Error loading list", error)
                 Toast.makeText(this, "Error loading list: ${error.message}", Toast.LENGTH_SHORT).show()
                 hideLoading()
                 return@addSnapshotListener
@@ -82,10 +81,8 @@ class BooksInListActivity : AppCompatActivity() {
 
             if (documentSnapshot != null && documentSnapshot.exists()) {
                 val list = documentSnapshot.toObject(ListModel::class.java)
-                Log.d(TAG, "List loaded: ${list?.listName}, Books count: ${list?.books?.size}")
                 list?.let { updateListUI(it) }
             } else {
-                Log.e(TAG, "List not found: $currentListId")
                 Toast.makeText(this, "List not found", Toast.LENGTH_SHORT).show()
                 finish()
             }
@@ -311,11 +308,6 @@ class BooksInListActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         } else {
-            loadedBooks.forEach { volume ->
-                Log.d(TAG, "Book: ${volume.volumeInfo.title}, " +
-                        "Rating: ${volume.volumeInfo.averageRating}, " +
-                        "Rating Count: ${volume.volumeInfo.ratingsCount}")
-            }
 
             displayBooks()
 
@@ -326,13 +318,6 @@ class BooksInListActivity : AppCompatActivity() {
 
                     if (loadedBooks.size < totalBooksInList) {
                         val failedCount = totalBooksInList - loadedBooks.size
-                        runOnUiThread {
-                            Toast.makeText(
-                                this@BooksInListActivity,
-                                "Loaded ${loadedBooks.size} of $totalBooksInList books. $failedCount failed to load.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error getting list document", e)

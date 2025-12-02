@@ -42,15 +42,6 @@ class SavedListsActivity : AppCompatActivity() {
         binding = SavedListsLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Check if user is logged in
-        if (currentUserId.isEmpty()) {
-            Toast.makeText(this, "Please log in to view your lists", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
-
-        Log.d(TAG, "Current User ID: $currentUserId")
-
         setupRecyclerView()
         setupClickListeners()
         setupRealTimeListener()
@@ -149,47 +140,39 @@ class SavedListsActivity : AppCompatActivity() {
 
         ListsDatabase.deleteList(listId)
             .addOnSuccessListener {
-                Log.d(TAG, "List deleted successfully: $listId")
                 // If no lists remain, exit delete mode
                 if (adapter.itemCount <= 1) {
                     toggleDeleteMode()
                 }
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "Failed to delete list: $listId", e)
                 Toast.makeText(this, "Failed to delete list: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun setupRealTimeListener() {
-        Log.d(TAG, "Setting up real-time listener for user: $currentUserId")
 
         listsListener = ListsDatabase.getAll()
             .whereEqualTo("userId", currentUserId)
             .addSnapshotListener { querySnapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "Error loading lists", error)
-                    Toast.makeText(this, "Error loading lists: ${error.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Error loading lists: ${error.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     return@addSnapshotListener
                 }
 
-                Log.d(TAG, "Snapshot received. Document count: ${querySnapshot?.documents?.size ?: 0}")
-
                 val lists = querySnapshot?.documents?.mapNotNull { document ->
                     try {
-                        Log.d(TAG, "Processing document: ${document.id}")
-                        Log.d(TAG, "Document data: ${document.data}")
 
                         val list = ListModel.fromMap(document.id, document.data ?: emptyMap())
-                        Log.d(TAG, "Parsed list: $list")
                         list
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing document ${document.id}", e)
                         null
                     }
                 } ?: emptyList()
-
-                Log.d(TAG, "Total lists parsed: ${lists.size}")
                 updateUI(lists)
             }
     }
@@ -204,7 +187,6 @@ class SavedListsActivity : AppCompatActivity() {
         adapter.updateData(savedLists)
 
         if (lists.isEmpty()) {
-            Log.d(TAG, "No lists found - showing empty state")
             binding.savedListsRv.visibility = android.view.View.GONE
 
             // Exit delete mode if active
@@ -217,7 +199,6 @@ class SavedListsActivity : AppCompatActivity() {
                 binding.emptyStateTv.visibility = android.view.View.VISIBLE
                 binding.emptyStateTv.text = "No lists yet. Create your first list!"
             } catch (e: Exception) {
-                Log.w(TAG, "emptyStateTv not found in layout", e)
                 Toast.makeText(this, "You don't have any lists yet. Create one!", Toast.LENGTH_SHORT).show()
             }
         } else {
@@ -269,16 +250,12 @@ class SavedListsActivity : AppCompatActivity() {
     }
 
     private fun createNewList(listName: String, dialog: Dialog) {
-        Log.d(TAG, "Creating new list: $listName for user: $currentUserId")
 
         ListsDatabase.createList(listName, currentUserId)
             .addOnSuccessListener {
-                Log.d(TAG, "List created successfully: $listName")
-                Toast.makeText(this, "List '$listName' created successfully!", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "Failed to create list: $listName", e)
                 Toast.makeText(this, "Failed to create list: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }

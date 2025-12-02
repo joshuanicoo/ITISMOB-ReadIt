@@ -141,7 +141,6 @@ class ReviewDialog(
 
         ReviewsDatabase.update(existingReview.id, updates)
             .addOnSuccessListener {
-                Toast.makeText(context, "Review updated successfully!", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
                 onReviewSubmitted()
             }
@@ -173,7 +172,6 @@ class ReviewDialog(
                     .addOnSuccessListener { documentReference ->
                         val reviewId = documentReference.id
                         updateBookReviews(reviewId)
-                        Toast.makeText(context, "Review submitted successfully!", Toast.LENGTH_SHORT).show()
                         dialog.dismiss()
                         onReviewSubmitted()
                     }

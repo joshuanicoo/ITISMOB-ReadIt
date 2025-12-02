@@ -232,7 +232,6 @@ class ScannerActivity : AppCompatActivity() {
         try {
             cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
             cameraRetryCount = 0 // reset on success
-            Toast.makeText(this, "Camera started successfully", Toast.LENGTH_SHORT).show()
         } catch (exc: Exception) {
             handleCameraError()
         }
