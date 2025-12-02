@@ -191,7 +191,9 @@ class LoginActivity : AppCompatActivity() {
 
         UsersDatabase.createWithId(documentId, user)
             .addOnSuccessListener {
-                completeAuthentication("Welcome to ${R.string.app_name}, ${account.displayName}!")
+                val appName = getString(R.string.app_name)
+                completeAuthentication("Welcome to $appName, ${account.displayName}!")
+
             }
             .addOnFailureListener { e ->
                 completeAuthentication("Welcome, ${account.displayName}!")
