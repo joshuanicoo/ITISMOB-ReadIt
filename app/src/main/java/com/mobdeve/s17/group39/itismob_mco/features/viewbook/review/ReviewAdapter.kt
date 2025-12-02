@@ -10,7 +10,25 @@ class ReviewAdapter(private val data: ArrayList<ReviewModel>) : RecyclerView.Ada
 
     var currentUserId: String = ""
     var onReviewLikeClickListener: ((ReviewModel, Int) -> Unit)? = null
-    private var isProcessingLike = false // Add this flag
+    private var isProcessingLike = false
+
+    // Filtered list that only contains reviews with comments
+    private val filteredData: List<ReviewModel>
+        get() = data.filter { it.comment.isNotEmpty() }
+
+    // Map to convert filtered position to original position
+    private fun getOriginalPosition(filteredPosition: Int): Int {
+        var count = 0
+        for (i in data.indices) {
+            if (data[i].comment.isNotEmpty()) {
+                if (count == filteredPosition) {
+                    return i
+                }
+                count++
+            }
+        }
+        return -1
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReviewViewHolder {
         val itemViewBinding: ReviewItemLayoutBinding = ReviewItemLayoutBinding.inflate(
@@ -25,9 +43,11 @@ class ReviewAdapter(private val data: ArrayList<ReviewModel>) : RecyclerView.Ada
                 isProcessingLike = true
                 val position = viewHolder.adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    onReviewLikeClickListener?.invoke(data[position], position)
+                    val originalPosition = getOriginalPosition(position)
+                    if (originalPosition != -1) {
+                        onReviewLikeClickListener?.invoke(data[originalPosition], originalPosition)
+                    }
                 }
-                // Re-enable after a short delay to prevent rapid clicking
                 viewHolder.binding.likeReviewBtn.postDelayed({
                     isProcessingLike = false
                 }, 1000)
@@ -38,18 +58,32 @@ class ReviewAdapter(private val data: ArrayList<ReviewModel>) : RecyclerView.Ada
     }
 
     override fun onBindViewHolder(holder: ReviewViewHolder, position: Int) {
-        holder.bindData(data[position], currentUserId)
+        val review = filteredData[position]
+        holder.bindData(review, currentUserId)
     }
 
     override fun getItemCount(): Int {
-        return data.size
+        return filteredData.size
     }
 
     // Helper method to update a specific review
     fun updateReview(position: Int, updatedReview: ReviewModel) {
         if (position in 0 until data.size) {
             data[position] = updatedReview
-            notifyItemChanged(position)
+            // Notify based on whether this item should be visible or not
+            if (updatedReview.comment.isNotEmpty()) {
+                // Find the filtered position
+                val filteredPosition = filteredData.indexOfFirst { it.id == updatedReview.id }
+                if (filteredPosition != -1) {
+                    notifyItemChanged(filteredPosition)
+                } else {
+                    // If it was empty before but now has a comment, insert it
+                    notifyDataSetChanged()
+                }
+            } else {
+                // If it now has empty comment, remove it from display
+                notifyDataSetChanged()
+            }
         }
     }
 
@@ -58,5 +92,10 @@ class ReviewAdapter(private val data: ArrayList<ReviewModel>) : RecyclerView.Ada
         data.clear()
         data.addAll(newData)
         notifyDataSetChanged()
+    }
+
+    // Helper to check if there are any reviews with comments
+    fun hasReviewsWithComments(): Boolean {
+        return filteredData.isNotEmpty()
     }
 }

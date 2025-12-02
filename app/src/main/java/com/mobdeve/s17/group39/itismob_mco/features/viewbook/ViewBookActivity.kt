@@ -212,9 +212,6 @@ class ViewBookActivity : AppCompatActivity() {
         viewBookVB.rateRb.setOnRatingBarChangeListener { ratingBar, rating, fromUser ->
             if (fromUser && currentUserDocumentId.isNotEmpty()) {
                 handleRatingChange(rating.toFloat())
-            } else if (fromUser && currentUserDocumentId.isEmpty()) {
-                Toast.makeText(this, "Please log in to rate books", Toast.LENGTH_SHORT).show()
-                ratingBar.rating = 0f
             }
         }
     }
@@ -353,12 +350,12 @@ class ViewBookActivity : AppCompatActivity() {
                     avgRating()
 
                     // Show/hide empty state
-                    if (reviews.isEmpty()) {
-                        viewBookVB.reviewRv.visibility = android.view.View.GONE
-                        viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
-                    } else {
+                    if (reviewAdapter.hasReviewsWithComments()) {
                         viewBookVB.reviewRv.visibility = android.view.View.VISIBLE
                         viewBookVB.noReviewsTv.visibility = android.view.View.GONE
+                    } else {
+                        viewBookVB.reviewRv.visibility = android.view.View.GONE
+                        viewBookVB.noReviewsTv.visibility = android.view.View.VISIBLE
                     }
 
                     // Hide loading once reviews are loaded
@@ -378,12 +375,6 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun handleRatingChange(newRating: Float) {
-        if (currentUserDocumentId.isEmpty()) {
-            Toast.makeText(this, "Please log in to rate books", Toast.LENGTH_SHORT).show()
-            viewBookVB.rateRb.rating = 0f
-            return
-        }
-
         val existingReview = reviewList.firstOrNull { it.userId == currentUserDocumentId }
 
         if (existingReview != null) {
@@ -404,7 +395,7 @@ class ViewBookActivity : AppCompatActivity() {
             username = currentUsername,
             userProfilePicture = userProfilePicture,
             rating = rating,
-            comment = "(Rated)",
+            comment = "",
             likes = 0,
             likedBy = emptyList(),
             createdAt = com.google.firebase.Timestamp.now(),
