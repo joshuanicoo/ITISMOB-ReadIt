@@ -67,7 +67,6 @@ class ScannerActivity : AppCompatActivity() {
         }
     }
 
-    // No permission needed for picking images - uses system picker
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
