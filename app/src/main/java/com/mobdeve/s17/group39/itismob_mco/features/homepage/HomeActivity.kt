@@ -63,6 +63,9 @@ class HomeActivity : AppCompatActivity() {
     private var scrollThreshold: Int = 10
     private var isFabVisible: Boolean = false
 
+    // Cache for ISBN searches to avoid duplicate API calls
+    private val isbnSearchCache = mutableMapOf<String, List<Volume>>()
+
     private val scannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -119,11 +122,9 @@ class HomeActivity : AppCompatActivity() {
 
                     if (isLikelyISBN(searchText)) {
                         Toast.makeText(this@HomeActivity, "Searching by ISBN...", Toast.LENGTH_SHORT).show()
-                        // For ISBN search, use the dedicated method
-                        val cleanISBN = searchText.replace(" ", "").replace("-", "").replace(".", "")
-                            .replace("isbn:", "", ignoreCase = true)
-                            .replace("ISBN:", "", ignoreCase = true)
-                        searchAllISBNVariations(cleanISBN, 0)
+                        // For manual ISBN search, use optimized search
+                        val cleanISBN = cleanISBN(searchText)
+                        searchISBN(cleanISBN, 0, isManualSearch = true)
                     } else {
                         searchBooks(searchText, 0)
                     }
@@ -150,10 +151,8 @@ class HomeActivity : AppCompatActivity() {
                         resetPagination()
 
                         if (isLikelyISBN(searchText)) {
-                            val cleanISBN = searchText.replace(" ", "").replace("-", "").replace(".", "")
-                                .replace("isbn:", "", ignoreCase = true)
-                                .replace("ISBN:", "", ignoreCase = true)
-                            searchAllISBNVariations(cleanISBN, 0)
+                            val cleanISBN = cleanISBN(searchText)
+                            searchISBN(cleanISBN, 0, isManualSearch = true)
                         } else {
                             searchBooks(searchText, 0)
                         }
@@ -262,7 +261,7 @@ class HomeActivity : AppCompatActivity() {
 
         if (isSearching) {
             if (isLikelyISBN(currentQuery)) {
-                searchAllISBNVariations(currentQuery, currentStartIndex)
+                searchBooks(currentQuery, currentStartIndex)
             } else {
                 searchBooks(currentQuery, currentStartIndex)
             }
@@ -284,17 +283,17 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun isLikelyISBN(query: String): Boolean {
-        val cleanQuery = query.replace(" ", "").replace("-", "").replace(".", "")
-
+        val cleanQuery = cleanISBN(query)
         val isbn10Pattern = Regex("^\\d{9}[\\dX]\$", RegexOption.IGNORE_CASE)
         val isbn13Pattern = Regex("^\\d{13}\$")
-        val isbnWithPrefixPattern = Regex("^(isbn:|ISBN:)?\\s*\\d{9}[\\dX]\$", RegexOption.IGNORE_CASE)
-        val isbn13WithPrefixPattern = Regex("^(isbn:|ISBN:)?\\s*\\d{13}\$", RegexOption.IGNORE_CASE)
 
-        return isbn10Pattern.matches(cleanQuery) ||
-                isbn13Pattern.matches(cleanQuery) ||
-                isbnWithPrefixPattern.matches(cleanQuery) ||
-                isbn13WithPrefixPattern.matches(cleanQuery)
+        return isbn10Pattern.matches(cleanQuery) || isbn13Pattern.matches(cleanQuery)
+    }
+
+    private fun cleanISBN(isbn: String): String {
+        return isbn.replace(" ", "").replace("-", "").replace(".", "")
+            .replace("isbn:", "", ignoreCase = true)
+            .replace("ISBN:", "", ignoreCase = true)
     }
 
     private fun setupGenreRecyclerView() {
@@ -436,155 +435,136 @@ class HomeActivity : AppCompatActivity() {
         })
     }
 
-    private fun searchAllISBNVariations(isbn: String, startIndex: Int) {
-        Log.d("ISBN_SEARCH", "Searching all ISBN variations for: $isbn")
+    private fun searchISBN(isbn: String, startIndex: Int, isManualSearch: Boolean = false) {
+        Log.d("ISBN_SEARCH", "Searching ISBN: $isbn (scanned: ${!isManualSearch})")
+
+        // Check cache first for faster results
+        if (startIndex == 0 && isbnSearchCache.containsKey(isbn)) {
+            Log.d("ISBN_SEARCH", "Cache hit for ISBN: $isbn")
+            val cachedResults = isbnSearchCache[isbn]!!
+            handleISBNResults(cachedResults, isbn, startIndex, isManualSearch)
+            return
+        }
 
         if (startIndex == 0) {
             showLoading()
         }
+        val searchQuery = if (!isManualSearch) {
+            "isbn:$isbn"
+        } else {
+            isbn
+        }
 
-        // Generate all possible ISBN variations
-        val allVariations = generateAllISBNVariations(isbn)
-        Log.d("ISBN_SEARCH", "Generated ${allVariations.size} variations: $allVariations")
+        Log.d("ISBN_SEARCH", "Using search query: $searchQuery")
 
-        // Use coroutines to search all variations in parallel
-        CoroutineScope(Dispatchers.IO).launch {
-            val allResults = mutableListOf<Volume>()
-            val failedSearches = mutableListOf<String>()
+        val call = apiInterface.searchBooks(searchQuery, maxResults, "books", startIndex)
+        call.enqueue(object : Callback<GoogleBooksResponse> {
+            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    val items = body.items ?: emptyList()
 
-            // Search each variation
-            for (variation in allVariations) {
-                try {
-                    val call = apiInterface.searchBooks(variation, maxResults, "books", startIndex)
-                    val response = call.execute()
-
-                    if (response.isSuccessful && response.body() != null) {
-                        val items = response.body()!!.items
-                        if (items != null && items.isNotEmpty()) {
-                            allResults.addAll(items)
-                            Log.d("ISBN_SEARCH", "Found ${items.size} results for variation: $variation")
+                    if (items.isNotEmpty()) {
+                        if (startIndex == 0) {
+                            isbnSearchCache[isbn] = items
                         }
+
+                        handleISBNResults(items, isbn, startIndex, isManualSearch)
                     } else {
-                        failedSearches.add(variation)
+                        if (!isManualSearch && startIndex == 0) {
+                            tryAlternativeISBNFormat(isbn, startIndex)
+                        } else {
+                            handleISBNResults(emptyList(), isbn, startIndex, isManualSearch)
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.e("ISBN_SEARCH", "Failed to search variation $variation: ${e.message}")
-                    failedSearches.add(variation)
+                } else {
+                    handleISBNResults(emptyList(), isbn, startIndex, isManualSearch)
                 }
             }
 
-            // Remove duplicates based on volume ID
-            val uniqueResults = allResults.distinctBy { it.id }
-
-            // Update UI on main thread
-            withContext(Dispatchers.Main) {
-                if (startIndex == 0) {
-                    allBooks.clear()
-                }
-
-                allBooks.addAll(uniqueResults)
-
-                // Sort by relevance (maybe by title or keep as is)
-                allBooks.sortBy { it.volumeInfo.title }
-
-                totalItems = allBooks.size
-                hasMoreBooks = false // ISBN searches typically don't have pagination
-                isLastPage = true
-
-                val genres = extractGenresFromBooks(allBooks)
-                genreAdapter.updateGenres(genres)
-                adapter.updateData(allBooks)
-
+            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                Log.e("ISBN_SEARCH", "ISBN search failed: ${t.message}")
                 if (startIndex == 0) {
                     hideLoading()
                 }
+                Toast.makeText(this@HomeActivity, "Failed to search ISBN", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
 
-                if (allBooks.isNotEmpty()) {
+    private fun tryAlternativeISBNFormat(isbn: String, startIndex: Int) {
+        Log.d("ISBN_SEARCH", "Trying alternative format for ISBN: $isbn")
+        val call = apiInterface.searchBooks(isbn, maxResults, "books", startIndex)
+        call.enqueue(object : Callback<GoogleBooksResponse> {
+            override fun onResponse(call: Call<GoogleBooksResponse>, response: Response<GoogleBooksResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    val items = body.items ?: emptyList()
+
+                    if (items.isNotEmpty()) {
+                        isbnSearchCache[isbn] = items
+                        handleISBNResults(items, isbn, startIndex, isManualSearch = false)
+                    } else {
+                        handleISBNResults(emptyList(), isbn, startIndex, isManualSearch = false)
+                    }
+                } else {
+                    handleISBNResults(emptyList(), isbn, startIndex, isManualSearch = false)
+                }
+            }
+
+            override fun onFailure(call: Call<GoogleBooksResponse>, t: Throwable) {
+                handleISBNResults(emptyList(), isbn, startIndex, isManualSearch = false)
+            }
+        })
+    }
+
+    private fun handleISBNResults(
+        items: List<Volume>,
+        isbn: String,
+        startIndex: Int,
+        isManualSearch: Boolean
+    ) {
+        runOnUiThread {
+            if (startIndex == 0) {
+                allBooks.clear()
+            }
+
+            allBooks.addAll(items)
+            totalItems = allBooks.size
+            hasMoreBooks = false
+            isLastPage = true
+
+            val genres = extractGenresFromBooks(allBooks)
+            genreAdapter.updateGenres(genres)
+            adapter.updateData(allBooks)
+
+            if (startIndex == 0) {
+                hideLoading()
+            }
+
+            if (allBooks.isNotEmpty()) {
+                if (!isManualSearch && allBooks.size == 1) {
+                    openBookDetailsDirectly(allBooks[0])
+                } else {
                     Toast.makeText(
                         this@HomeActivity,
                         "Found ${allBooks.size} book(s) for ISBN: $isbn",
                         Toast.LENGTH_SHORT
                     ).show()
-
-                    // If it's a scanned search and we found exactly one book, open it directly
-                    if (isScannedSearch && allBooks.size == 1) {
-                        openBookDetailsDirectly(allBooks[0])
-                    }
-                } else {
-                    Toast.makeText(
-                        this@HomeActivity,
-                        "No books found for ISBN: $isbn",
-                        Toast.LENGTH_SHORT
-                    ).show()
                 }
+            } else {
+                Toast.makeText(
+                    this@HomeActivity,
+                    "No books found for ISBN: $isbn",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
 
-                if (startIndex > 0) {
-                    isLoadingMore = false
-                    adapter.setLoading(false)
-                }
+            if (startIndex > 0) {
+                isLoadingMore = false
+                adapter.setLoading(false)
             }
         }
-    }
-
-    private fun generateAllISBNVariations(isbn: String): List<String> {
-        val variations = mutableListOf<String>()
-        val cleanISBN = isbn.replace(" ", "").replace("-", "").replace(".", "")
-
-        // Basic variations
-        variations.add("isbn:$cleanISBN")
-        variations.add("ISBN:$cleanISBN")
-        variations.add(cleanISBN)
-
-        // ISBN-10 specific variations
-        if (cleanISBN.length == 10) {
-            // Try with and without the check digit
-            val withoutCheck = cleanISBN.substring(0, 9)
-            variations.add("isbn:$withoutCheck")
-            variations.add("ISBN:$withoutCheck")
-            variations.add(withoutCheck)
-
-            // Convert to ISBN-13
-            val isbn13 = convertISBN10ToISBN13(cleanISBN)
-            if (isbn13 != null) {
-                variations.add("isbn:$isbn13")
-                variations.add("ISBN:$isbn13")
-                variations.add(isbn13)
-
-                // Also try without check digit for ISBN-13
-                val isbn13WithoutCheck = isbn13.substring(0, 12)
-                variations.add("isbn:$isbn13WithoutCheck")
-                variations.add("ISBN:$isbn13WithoutCheck")
-                variations.add(isbn13WithoutCheck)
-            }
-        }
-
-        // ISBN-13 specific variations
-        if (cleanISBN.length == 13) {
-            // Try with and without the check digit
-            val withoutCheck = cleanISBN.substring(0, 12)
-            variations.add("isbn:$withoutCheck")
-            variations.add("ISBN:$withoutCheck")
-            variations.add(withoutCheck)
-
-            // Convert to ISBN-10 if it starts with 978
-            if (cleanISBN.startsWith("978")) {
-                val isbn10 = convertISBN13ToISBN10(cleanISBN)
-                if (isbn10 != null) {
-                    variations.add("isbn:$isbn10")
-                    variations.add("ISBN:$isbn10")
-                    variations.add(isbn10)
-
-                    // Also try without check digit for ISBN-10
-                    val isbn10WithoutCheck = isbn10.substring(0, 9)
-                    variations.add("isbn:$isbn10WithoutCheck")
-                    variations.add("ISBN:$isbn10WithoutCheck")
-                    variations.add(isbn10WithoutCheck)
-                }
-            }
-        }
-
-        // Return unique variations
-        return variations.distinct()
     }
 
     private fun handleResponse(response: Response<GoogleBooksResponse>, startIndex: Int) {
@@ -630,7 +610,6 @@ class HomeActivity : AppCompatActivity() {
             Toast.makeText(this@HomeActivity, "Failed to load books", Toast.LENGTH_SHORT).show()
         }
 
-        // Reset loading state for infinite scroll
         if (startIndex > 0) {
             isLoadingMore = false
             adapter.setLoading(false)
@@ -732,43 +711,11 @@ class HomeActivity : AppCompatActivity() {
             resetPagination()
             Toast.makeText(this, "Searching for ISBN: $isbn", Toast.LENGTH_SHORT).show()
 
-            val cleanISBN = isbn.replace(" ", "").replace("-", "")
-            searchAllISBNVariations(cleanISBN, 0)
+            val cleanISBN = cleanISBN(isbn)
+            searchISBN(cleanISBN, 0, isManualSearch = false)
         } else {
             Toast.makeText(this, "Invalid ISBN scanned", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun convertISBN10ToISBN13(isbn10: String): String? {
-        if (isbn10.length != 10) return null
-        val isbnWithoutCheck = "978" + isbn10.substring(0, 9)
-        var sum = 0
-        for (i in isbnWithoutCheck.indices) {
-            val digit = isbnWithoutCheck[i].digitToIntOrNull() ?: return null
-            sum += if (i % 2 == 0) digit else digit * 3
-        }
-
-        val checkDigit = (10 - (sum % 10)) % 10
-        return isbnWithoutCheck + checkDigit
-    }
-
-    private fun convertISBN13ToISBN10(isbn13: String): String? {
-        if (isbn13.length != 13 || !isbn13.startsWith("978")) return null
-        val isbnWithoutPrefix = isbn13.substring(3, 12)
-        var sum = 0
-        for (i in isbnWithoutPrefix.indices) {
-            val digit = isbnWithoutPrefix[i].digitToIntOrNull() ?: return null
-            sum += digit * (10 - i)
-        }
-
-        val remainder = sum % 11
-        val checkDigit = when (remainder) {
-            0 -> '0'
-            1 -> 'X'
-            else -> (11 - remainder).toString().first()
-        }
-
-        return isbnWithoutPrefix + checkDigit
     }
 
     private fun getApiInterface() {
