@@ -13,7 +13,6 @@ data class ReviewModel(
     val createdAt: Timestamp = Timestamp.now(),
     val authorLikedBook: Boolean = false,
 
-    // UI-only fields - NOT saved to Firestore
     val username: String = "",
     val userProfilePicture: String? = null
 ) {
@@ -42,14 +41,12 @@ data class ReviewModel(
                 likedBy = map["likedBy"] as? List<String> ?: emptyList(),
                 createdAt = map["createdAt"] as? Timestamp ?: Timestamp.now(),
                 authorLikedBook = map["authorLikedBook"] as? Boolean ?: false,
-                // These will be empty when loaded from Firestore
                 username = "",
                 userProfilePicture = null
             )
         }
     }
 
-    // Helper method to create a copy with user data
     fun withUserData(username: String, userProfilePicture: String? = null): ReviewModel {
         return this.copy(
             username = username,

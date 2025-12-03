@@ -16,7 +16,6 @@ data class BookModel(
 
     companion object {
         fun fromMap(documentId: String, map: Map<String, Any>): BookModel {
-            // Handle both string and number types when reading from Firestore
             val bookId = when (val idField = map["bookId"]) {
                 is String -> idField
                 is Long -> idField.toString()

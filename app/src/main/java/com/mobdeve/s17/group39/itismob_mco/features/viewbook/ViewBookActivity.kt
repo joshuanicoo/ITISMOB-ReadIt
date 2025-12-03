@@ -64,9 +64,8 @@ class ViewBookActivity : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         userId = auth.currentUser?.uid ?: ""
 
-        // Get book details from the previous screen
         googleBooksId = intent.getStringExtra(ID_KEY) ?: ""
-        bookDocId = "book_${googleBooksId}" // Our custom ID format
+        bookDocId = "book_${googleBooksId}"
 
         val title = intent.getStringExtra(TITLE_KEY).toString()
         val author = intent.getStringExtra(AUTHOR_KEY).toString()
@@ -76,33 +75,26 @@ class ViewBookActivity : AppCompatActivity() {
         val genre = intent.getStringExtra(GENRE_KEY)
         val imageUrl = intent.getStringExtra(IMAGE_URL)
 
-        // Set up the basic book info
         binding.titleTv.text = title
         binding.authorTv.text = author
         binding.descriptionTv.text = description
         binding.avgRatingRb.rating = avgRating.toFloat()
         binding.numberOfRatingsTv.text = ratingCount.toString()
 
-        // Load book cover and banner images
         loadImages(imageUrl)
 
-        // Set up genre tags
         setupGenres(genre)
 
-        // Set up the reviews list
         setupReviewsList()
 
-        // Load reviews and check if user already liked this book
         loadReviews()
         checkIfLiked()
 
-        // Set up clickables
         setupClicks()
     }
 
     override fun onResume() {
         super.onResume()
-        // Refresh reviews when coming back to this screen
         refreshReviews()
     }
 
@@ -124,7 +116,6 @@ class ViewBookActivity : AppCompatActivity() {
 
     private fun loadImages(imageUrl: String?) {
         if (!imageUrl.isNullOrEmpty()) {
-            // Load the book cover
             Glide.with(this)
                 .load(imageUrl)
                 .placeholder(R.drawable.book_placeholder)
@@ -132,7 +123,6 @@ class ViewBookActivity : AppCompatActivity() {
                 .centerCrop()
                 .into(binding.coverIv)
 
-            // Load the blurred banner background
             Glide.with(this)
                 .load(imageUrl)
                 .apply(
@@ -177,14 +167,12 @@ class ViewBookActivity : AppCompatActivity() {
         binding.reviewRv.adapter = reviewAdapter
         binding.reviewRv.layoutManager = LinearLayoutManager(this)
 
-        // Handle when someone likes a review
         reviewAdapter.onReviewLikeClickListener = { review, position ->
             handleReviewLike(review, position)
         }
     }
 
     private fun checkIfLiked() {
-        // Check if the current user has already liked this book
         binding.root.postDelayed({
             if (userId.isNotEmpty() && bookDocId.isNotEmpty()) {
                 BookUserService.isBookLikedByUser(userId, bookDocId)
@@ -324,17 +312,14 @@ class ViewBookActivity : AppCompatActivity() {
                     try {
                         val review = ReviewModel.fromMap(doc.id, doc.data!!)
                         loadedReviews.add(review)
-                        userIds.add(review.userId) // Collect user IDs for fetching profile data
+                        userIds.add(review.userId)
                     } catch (e: Exception) {
-                        // Skip bad data
                     }
                 }
 
-                // Update user's rating display
                 val userRating = loadedReviews.firstOrNull { it.userId == userId }?.rating ?: 0f
                 binding.rateRb.rating = userRating
 
-                // Fetch user profile pictures and names
                 fetchUserData(loadedReviews, userIds)
             }
             .addOnFailureListener { e ->
@@ -352,7 +337,6 @@ class ViewBookActivity : AppCompatActivity() {
             return
         }
 
-        // Fetch each user's profile data
         userIds.forEach { userId ->
             UsersDatabase.getById(userId)
                 .addOnSuccessListener { doc ->
@@ -382,7 +366,6 @@ class ViewBookActivity : AppCompatActivity() {
     }
 
     private fun updateReviewsUI(reviews: List<ReviewModel>, userData: Map<String, Pair<String, String?>>) {
-        // Add user profile data to reviews
         val reviewsWithUserData = reviews.map { review ->
             val (username, profilePic) = userData[review.userId] ?: Pair("Anonymous", null)
             review.copy(
@@ -396,10 +379,8 @@ class ViewBookActivity : AppCompatActivity() {
         this.reviews.addAll(reviewsWithUserData)
         reviewAdapter.notifyDataSetChanged()
 
-        // Update average rating display
         calculateAvgRating()
 
-        // Show/hide empty state
         if (reviewAdapter.hasReviewsWithComments()) {
             binding.reviewRv.visibility = android.view.View.VISIBLE
             binding.noReviewsTv.visibility = android.view.View.GONE
@@ -431,7 +412,7 @@ class ViewBookActivity : AppCompatActivity() {
             bookId = bookDocId,
             userId = userId,
             rating = rating,
-            comment = "", // Empty comment = rating only
+            comment = "",
             likes = 0,
             likedBy = emptyList(),
             createdAt = com.google.firebase.Timestamp.now(),
