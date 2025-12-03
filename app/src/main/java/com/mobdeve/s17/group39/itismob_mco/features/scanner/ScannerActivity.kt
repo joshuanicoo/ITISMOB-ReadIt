@@ -359,7 +359,6 @@ class ScannerActivity : AppCompatActivity() {
                             return@addOnSuccessListener
                         }
                     }
-                    // No barcode found in image
                     Toast.makeText(this, "No ISBN barcode found in image", Toast.LENGTH_SHORT).show()
                 }
                 .addOnFailureListener { e ->
@@ -420,9 +419,7 @@ class ScannerActivity : AppCompatActivity() {
         runOnUiThread {
             val cleanIsbn = barcodeValue.replace("[^\\dX]".toRegex(), "")
 
-            // Check if this is a valid ISBN
             if (isValidIsbn(cleanIsbn)) {
-                // Additional validation: Check if it follows ISBN format rules
                 val validatedIsbn = validateAndNormalizeIsbn(cleanIsbn)
                 if (validatedIsbn != null) {
                     val resultIntent = Intent().apply {
@@ -442,18 +439,13 @@ class ScannerActivity : AppCompatActivity() {
     }
 
     private fun validateAndNormalizeIsbn(barcodeValue: String): String? {
-        // Remove all non-digit characters except X (for ISBN-10 check digit)
         val cleanValue = barcodeValue.replace("[^\\dX]".toRegex(), "")
-
-        // Check length - ISBN must be 10 or 13 digits
         if (cleanValue.length !in listOf(10, 13)) {
             return null
         }
 
-        // Validate based on length
         return when (cleanValue.length) {
             10 -> {
-                // Validate ISBN-10
                 if (isValidIsbn10(cleanValue)) {
                     cleanValue
                 } else {
@@ -461,13 +453,10 @@ class ScannerActivity : AppCompatActivity() {
                 }
             }
             13 -> {
-                // Validate ISBN-13
                 if (isValidIsbn13(cleanValue)) {
-                    // Check if it's a book ISBN (starts with 978 or 979)
                     if (cleanValue.startsWith("978") || cleanValue.startsWith("979")) {
                         cleanValue
                     } else {
-                        // Not a book ISBN (might be other EAN-13)
                         null
                     }
                 } else {
@@ -485,16 +474,13 @@ class ScannerActivity : AppCompatActivity() {
     private fun isValidIsbn10(isbn: String): Boolean {
         if (isbn.length != 10) return false
 
-        // Check first 9 characters are digits
         for (i in 0 until 9) {
             if (!isbn[i].isDigit()) return false
         }
 
-        // Check last character is digit or X
         val lastChar = isbn[9]
         if (!lastChar.isDigit() && lastChar != 'X' && lastChar != 'x') return false
 
-        // Calculate checksum
         var sum = 0
         for (i in 0 until 9) {
             val digit = isbn[i] - '0'
