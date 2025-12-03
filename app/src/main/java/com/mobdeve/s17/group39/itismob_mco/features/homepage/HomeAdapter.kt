@@ -17,8 +17,6 @@ class HomeAdapter(private var data: List<Volume>): RecyclerView.Adapter<HomeView
 
     private var onItemClickListener: ((Volume, Int) -> Unit)? = null
     private val googleBooksApi: GoogleBooksApiInterface = RetrofitInstance.getInstance().create(GoogleBooksApiInterface::class.java)
-
-    // Loading state
     private var isLoading = false
 
     fun setLoading(loading: Boolean) {
@@ -84,7 +82,6 @@ class HomeAdapter(private var data: List<Volume>): RecyclerView.Adapter<HomeView
             }
 
             override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                // Silent fail - user can try again
             }
         })
     }

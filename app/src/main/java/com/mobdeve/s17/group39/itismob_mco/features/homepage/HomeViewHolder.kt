@@ -44,17 +44,14 @@ class HomeViewHolder(private val viewBinding: BooksCardLayoutBinding) : Recycler
     private fun enhanceGoogleBooksUrl(url: String): String {
         var enhancedUrl = url.replace("http://", "https://")
 
-        // Remove common unwanted parameters
         enhancedUrl = enhancedUrl.replace("&edge=curl", "")
 
-        // Handle Google Books specific URLs
         when {
             enhancedUrl.contains("googleapis.com") -> {
                 // For Google Books API images
                 enhancedUrl = enhancedUrl.replace("zoom=1", "zoom=2")
                 enhancedUrl = enhancedUrl.replace("imgmax=128", "imgmax=512")
 
-                // Ensure we have proper parameters
                 if (!enhancedUrl.contains("imgmax=")) {
                     enhancedUrl += if (enhancedUrl.contains("?")) "&imgmax=512" else "?imgmax=512"
                 }
@@ -64,10 +61,7 @@ class HomeViewHolder(private val viewBinding: BooksCardLayoutBinding) : Recycler
             }
 
             enhancedUrl.contains("books.google.com") -> {
-                // For direct Google Books links
                 enhancedUrl = enhancedUrl.replace("&printsec=frontcover", "&printsec=frontcover&img=1&zoom=2")
-
-                // Add missing parameters for better quality
                 if (!enhancedUrl.contains("img=")) {
                     enhancedUrl += if (enhancedUrl.contains("?")) "&img=1" else "?img=1"
                 }

@@ -62,8 +62,6 @@ class BooksInListActivity : AppCompatActivity() {
             return
         }
 
-        Log.d(TAG, "List ID: $currentListId")
-
         setupUI()
         setupRecyclerView()
         getApiInterface()
@@ -113,15 +111,10 @@ class BooksInListActivity : AppCompatActivity() {
             return
         }
 
-        Log.d(TAG, "Loading ${bookIds.size} books from list")
-        Log.d(TAG, "Book IDs to load: $bookIds")
-
         val totalBooks = bookIds.size
         val processedCount = AtomicInteger(0)
         bookIds.forEachIndexed { index, bookId ->
-            Log.d(TAG, "Loading book $index: ID=$bookId")
             val cleanBookId = cleanBookId(bookId)
-            Log.d(TAG, "Cleaned book ID for API: $cleanBookId")
             loadBookFromGoogleBooks(cleanBookId, bookId, processedCount, totalBooks)
         }
     }
@@ -167,79 +160,55 @@ class BooksInListActivity : AppCompatActivity() {
                                           processedCount: AtomicInteger, totalBooks: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d(TAG, "Loading reviews for book ID: $bookId")
                 val googleBooksId = cleanBookId(bookId)
-                Log.d(TAG, "Looking for reviews with Google Books ID: $googleBooksId")
                 val reviewsQuery = ReviewsDatabase.getReviewsByBookId(googleBooksId).await()
-                Log.d(TAG, "Reviews query results: ${reviewsQuery?.documents?.size ?: 0}")
                 var reviews = mutableListOf<ReviewModel>()
                 if (reviewsQuery?.documents?.isNotEmpty() == true) {
                     reviews = reviewsQuery.documents.mapNotNull { document ->
                         try {
                             val review = ReviewModel.fromMap(document.id, document.data ?: emptyMap())
-                            Log.d(TAG, "Found review for $googleBooksId: ${review.comment.take(50)}... by ${review.username}")
                             review
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error parsing review document ${document.id}", e)
                             null
                         }
                     }.toMutableList()
                 } else {
-                    Log.d(TAG, "Trying with original ID: $bookId")
                     val reviewsQuery2 = ReviewsDatabase.getReviewsByBookId(bookId).await()
                     if (reviewsQuery2?.documents?.isNotEmpty() == true) {
                         reviews = reviewsQuery2.documents.mapNotNull { document ->
                             try {
                                 val review = ReviewModel.fromMap(document.id, document.data ?: emptyMap())
-                                Log.d(TAG, "Found review for $bookId: ${review.comment.take(50)}... by ${review.username}")
                                 review
                             } catch (e: Exception) {
-                                Log.e(TAG, "Error parsing review document ${document.id}", e)
                                 null
                             }
                         }.toMutableList()
                     }
                 }
 
-                Log.d(TAG, "Total reviews found for book $bookId: ${reviews.size}")
-
                 if (reviews.isNotEmpty()) {
-                    Log.d(TAG, "Sample review data - First review:")
                     val firstReview = reviews.first()
-                    Log.d(TAG, "  Comment: ${firstReview.comment}")
-                    Log.d(TAG, "  Rating: ${firstReview.rating}")
-                    Log.d(TAG, "  Username: ${firstReview.username}")
-                    Log.d(TAG, "  Likes: ${firstReview.likes}")
                 }
                 val averageRating = if (reviews.isNotEmpty()) {
                     val avg = reviews.map { it.rating }.average().toFloat()
-                    Log.d(TAG, "Calculated average rating: $avg from ${reviews.size} reviews")
                     avg
                 } else {
-                    Log.d(TAG, "No reviews found for book $bookId")
                     null
                 }
                 val reviewsCount = reviews.size
-                Log.d(TAG, "For book ${volume.volumeInfo.title}: " +
-                        "Calculated average rating: $averageRating from $reviewsCount reviews")
                 val updatedVolume = if (averageRating != null || reviewsCount > 0) {
                     createVolumeWithReviewData(volume, averageRating?.toDouble(), reviewsCount)
                 } else {
-                    Log.d(TAG, "No reviews found for ${volume.volumeInfo.title}, using original volume")
                     volume
                 }
                 withContext(Dispatchers.Main) {
                     synchronized(loadedBooks) {
                         loadedBooks.add(updatedVolume)
                     }
-
-                    Log.d(TAG, "Successfully loaded book with reviews: ${updatedVolume.volumeInfo.title}, " +
-                            "Rating: ${averageRating ?: "N/A"}, Reviews: $reviewsCount")
                 }
                 checkBookInDatabase(bookId, updatedVolume)
 
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading reviews for book ID: $bookId", e)
                 withContext(Dispatchers.Main) {
                     synchronized(loadedBooks) {
                         loadedBooks.add(volume)
@@ -260,10 +229,6 @@ class BooksInListActivity : AppCompatActivity() {
             averageRating = averageRating ?: volume.volumeInfo.averageRating,
             ratingsCount = if (ratingsCount > 0) ratingsCount else volume.volumeInfo.ratingsCount
         )
-
-        Log.d(TAG, "Updating volume: ${volume.volumeInfo.title} " +
-                "Old rating: ${volume.volumeInfo.averageRating}, New rating: $averageRating " +
-                "Old count: ${volume.volumeInfo.ratingsCount}, New count: $ratingsCount")
         return volume.copy(
             volumeInfo = updatedVolumeInfo
         )
@@ -289,7 +254,6 @@ class BooksInListActivity : AppCompatActivity() {
 
     private fun incrementProcessedCount(processedCount: AtomicInteger, totalBooks: Int) {
         val currentProcessed = processedCount.incrementAndGet()
-        Log.d(TAG, "Processed $currentProcessed/$totalBooks books")
 
         if (currentProcessed == totalBooks) {
             runOnUiThread {
@@ -329,7 +293,7 @@ class BooksInListActivity : AppCompatActivity() {
 
     private fun cleanBookId(bookId: String): String {
         return if (bookId.startsWith("book_")) {
-            bookId.substring(5) // Remove "book_" (5 characters)
+            bookId.substring(5)
         } else {
             bookId
         }
